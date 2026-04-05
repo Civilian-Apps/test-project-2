@@ -1,0 +1,120 @@
+name: Pace Build Queue
+on:
+  issues:
+    types: [closed, labeled]
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: '*/30 * * * *'
+
+jobs:
+  pace:
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issues' && github.event.action == 'closed') ||
+      (github.event_name == 'issues' && github.event.label.name == 'build-failed') ||
+      (github.event_name == 'issues' && github.event.label.name == 'rate-limited')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Retry rate-limited issues (immediate, up to 3x)
+        if: >
+          github.event_name != 'schedule'
+        run: |
+          RATE_LIMITED=$(gh issue list --label "rate-limited" --state open --json number -q '.[].number')
+          for ISSUE in $RATE_LIMITED; do
+            # Count previous auto-retries
+            RETRY_COUNT=$(gh issue view $ISSUE --json comments -q '[.comments[].body | select(startswith("Auto-retry"))] | length')
+
+            if [ "$RETRY_COUNT" -lt 3 ]; then
+              NEXT=$((RETRY_COUNT + 1))
+              gh issue edit $ISSUE --remove-label "rate-limited" --add-label "approved"
+              gh issue comment $ISSUE --body "Auto-retry $NEXT/3"
+              echo "Requeued #$ISSUE (retry $NEXT/3)"
+            else
+              gh issue edit $ISSUE --remove-label "rate-limited" --add-label "rate-limit-paused"
+              gh issue comment $ISSUE --body "Paused after 3 retries. Will retry on next 30-min cycle."
+              echo "Paused #$ISSUE after 3 retries"
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Retry paused issues (30-min cron only)
+        if: github.event_name == 'schedule'
+        run: |
+          PAUSED=$(gh issue list --label "rate-limit-paused" --state open --json number -q '.[].number')
+          for ISSUE in $PAUSED; do
+            gh issue edit $ISSUE --remove-label "rate-limit-paused" --add-label "approved"
+            gh issue comment $ISSUE --body "Resuming from 30-min cycle."
+            echo "Resumed paused #$ISSUE"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Unblock resolved dependencies
+        run: |
+          BLOCKED=$(gh issue list --label "blocked" --state open --json number -q '.[].number')
+          for ISSUE in $BLOCKED; do
+            BODY=$(gh issue view $ISSUE --json body -q '.body')
+            ALL_CLOSED=true
+            for DEP in $(echo "$BODY" | grep -oP '#\d+' | head -10); do
+              STATE=$(gh issue view ${DEP#\#} --json state -q '.state')
+              if [ "$STATE" != "CLOSED" ]; then
+                ALL_CLOSED=false
+                break
+              fi
+            done
+            if [ "$ALL_CLOSED" = "true" ]; then
+              gh issue edit $ISSUE --remove-label "blocked" --add-label "approved"
+              echo "Unblocked #$ISSUE"
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Promote approved to ready-to-build
+        run: |
+          ACTIVE=$(gh issue list --label "ready-to-build" --state open --json number -q 'length')
+
+          MAX_CONCURRENT=3
+          SLOTS=$((MAX_CONCURRENT - ACTIVE))
+
+          if [ "$SLOTS" -le 0 ]; then
+            echo "All $MAX_CONCURRENT slots full."
+            exit 0
+          fi
+
+          APPROVED=$(gh issue list --label "approved" --state open --json number -q '.[].number' | head -20)
+
+          LABELED=0
+          for ISSUE in $APPROVED; do
+            [ "$LABELED" -ge "$SLOTS" ] && break
+
+            BODY=$(gh issue view $ISSUE --json body -q '.body')
+            HAS_DEPS=false
+            for DEP in $(echo "$BODY" | grep -oP '#\d+' | head -10); do
+              STATE=$(gh issue view ${DEP#\#} --json state -q '.state')
+              if [ "$STATE" != "CLOSED" ]; then
+                HAS_DEPS=true
+                gh issue edit $ISSUE --add-label "blocked" --remove-label "approved" 2>/dev/null || true
+                break
+              fi
+            done
+
+            if [ "$HAS_DEPS" = "false" ]; then
+              gh issue edit $ISSUE --add-label "ready-to-build" --remove-label "approved"
+              LABELED=$((LABELED + 1))
+              echo "Promoted #$ISSUE"
+            fi
+          done
+
+          echo "Promoted $LABELED. Active: $((ACTIVE + LABELED))/$MAX_CONCURRENT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}

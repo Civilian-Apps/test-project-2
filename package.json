@@ -1,5 +1,5 @@
 {
-  "name": "UPDATE_THIS_WITH_YOUR_APP_NAME",
+  "name": "test-project-2",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,7 +15,15 @@
     "supabase:link": "env-cmd -f ./.env.local supabase link --project-ref UPDATE_THIS_WITH_YOUR_SUPABASE_PROJECT_ID",
     "migration:new": "supabase migration new",
     "migration:up": "supabase migration up --linked --debug && npm run generate-types",
-    "migration:squash": "supabase migration squash --linked"
+    "migration:squash": "supabase migration squash --linked",
+    "prepare": "husky",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --passWithNoTests",
+    "format": "prettier --write .",
+    "gen:types": "supabase gen types typescript --local > src/lib/supabase/types.ts",
+    "db:reset": "supabase db reset && npm run gen:types",
+    "db:push": "supabase db push && npm run gen:types"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.2",
@@ -48,20 +56,31 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@jest/types": "^30.3.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/react": "19.0.4",
     "@types/react-dom": "19.0.2",
     "autoprefixer": "^10.4.20",
     "env-cmd": "^10.1.0",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.1.4",
-    "eslint-config-prettier": "^8.10.0",
+    "eslint-config-prettier": "^8.10.2",
     "eslint-plugin-react": "^7.37.3",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "eslint-plugin-tailwindcss": "^3.17.5",
+    "husky": "^9.1.7",
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0",
+    "lint-staged": "^16.4.0",
     "postcss": "^8.4.49",
     "prettier": "^2.8.8",
     "prettier-plugin-tailwindcss": "^0.3.0",
     "supabase": "^1.226.4",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.7.3"
   },
   "overrides": {

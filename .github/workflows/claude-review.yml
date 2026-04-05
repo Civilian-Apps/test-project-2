@@ -1,0 +1,39 @@
+name: Review PR
+on:
+  pull_request:
+    types: [opened, synchronize]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+
+      - name: Run full test suite
+        run: |
+          npm test -- --passWithNoTests
+          npx tsc --noEmit
+          npm run lint
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Review this PR. Read the linked Issue for the feature spec.
+            Check: does the implementation match the acceptance criteria?
+            Check: are there regressions in existing functionality?
+            Check: does the code follow rules/app-spec.md and CLAUDE.md?
+            The full test suite has already run above — if it failed,
+            flag that the PR is not ready.
+            Post your review as PR comments.
+            If everything passes, add the label "ready-for-human-review".
+          claude_args: '--max-turns 10 --model claude-sonnet-4-6 --allowedTools Bash(git*),Read,GlobTool,GrepTool'

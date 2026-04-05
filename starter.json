@@ -1,0 +1,7 @@
+{
+  "packages": {
+    "next-supa-stripe": { "source": "KolbySisk/next-supabase-stripe-starter", "version": "latest" },
+    "nextbase-dev": { "source": "nextbase dev dependencies", "version": "latest" }
+  },
+  "created": "2026-04-05"
+}

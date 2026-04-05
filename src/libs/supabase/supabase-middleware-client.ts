@@ -1,6 +1,6 @@
 // Ref: https://supabase.com/docs/guides/auth/server-side/nextjs
 
-import { type NextRequest,NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 import { getEnvVar } from '@/utils/get-env-var';
 import { createServerClient } from '@supabase/ssr';
@@ -18,7 +18,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           for (const { name, value, options } of cookiesToSet) {
             request.cookies.set(name, value);
           }

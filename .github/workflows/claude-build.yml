@@ -1,0 +1,111 @@
+name: Build Feature
+on:
+  issues:
+    types: [labeled]
+jobs:
+  build:
+    if: github.event.label.name == 'ready-to-build'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+
+      - name: Check dependencies
+        run: |
+          ISSUE_BODY=$(gh issue view ${{ github.event.issue.number }} --json body -q '.body')
+          DEPS=$(echo "$ISSUE_BODY" | grep -oP '#\d+' | head -10)
+          for dep in $DEPS; do
+            STATE=$(gh issue view ${dep#\#} --json state -q '.state')
+            if [ "$STATE" != "CLOSED" ]; then
+              gh issue comment ${{ github.event.issue.number }} --body "Blocked: waiting on $dep"
+              gh issue edit ${{ github.event.issue.number }} --remove-label ready-to-build --add-label blocked
+              exit 1
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record start time
+        id: timer
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@v1
+        id: claude-build
+        continue-on-error: true
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Read the issue body for the feature spec.
+            Follow TDD: write failing tests first, then implement.
+            All tests must pass — not just your new tests, the FULL test suite.
+            Lint must be clean. Types must check.
+            Update CHANGELOG.md with what you built.
+            Create a PR with conventional commit message referencing the Issue.
+          claude_args: '--max-turns 30 --model claude-opus-4-6'
+
+      - name: Classify result
+        if: always()
+        run: |
+          CONCLUSION="${{ steps.claude-build.outputs.conclusion }}"
+          EXEC_FILE="${{ steps.claude-build.outputs.execution_file }}"
+          ELAPSED=$(( $(date +%s) - ${{ steps.timer.outputs.start }} ))
+
+          echo "Conclusion: $CONCLUSION"
+          echo "Elapsed: ${ELAPSED}s"
+          echo "Execution file: $EXEC_FILE"
+
+          # Success — nothing to do
+          if [ "$CONCLUSION" = "success" ]; then
+            echo "Build succeeded."
+            exit 0
+          fi
+
+          # Check if execution file exists and has meaningful content
+          HAS_CONTENT=false
+          if [ -n "$EXEC_FILE" ] && [ -f "$EXEC_FILE" ]; then
+            LINES=$(wc -l < "$EXEC_FILE")
+            if [ "$LINES" -gt 2 ]; then
+              HAS_CONTENT=true
+            fi
+          fi
+
+          # Classify failure:
+          # - No content + fast (< 30s): rate limit or auth issue
+          # - No content + slow: infrastructure issue
+          # - Has content + failed: real build failure (code was wrong)
+          if [ "$HAS_CONTENT" = "false" ] && [ "$ELAPSED" -lt 30 ]; then
+            LABEL="rate-limited"
+            MSG="Build stopped with no work done (${ELAPSED}s). Likely rate limited or auth issue."
+          elif [ "$HAS_CONTENT" = "false" ]; then
+            LABEL="rate-limited"
+            MSG="Build stopped with no work done after ${ELAPSED}s. Infrastructure issue."
+          else
+            LABEL="build-failed"
+            MSG="Build failed after ${ELAPSED}s with work in progress. Check [logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+          fi
+
+          # Count previous retries for this issue
+          RETRY_COUNT=$(gh issue view ${{ github.event.issue.number }} --json comments -q '[.comments[].body | select(startswith("Auto-retry"))] | length')
+
+          if [ "$LABEL" = "rate-limited" ] && [ "$RETRY_COUNT" -ge 3 ]; then
+            LABEL="rate-limit-paused"
+            MSG="$MSG Paused after $RETRY_COUNT retries — will retry on next 30-min cycle."
+          fi
+
+          gh issue edit ${{ github.event.issue.number }} \
+            --remove-label ready-to-build \
+            --add-label "$LABEL"
+          gh issue comment ${{ github.event.issue.number }} --body "$MSG"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
