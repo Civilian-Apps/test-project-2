@@ -45,7 +45,15 @@ export function PricingCard({
   const monthPrice = product.prices.find((price) => price.interval === 'month')?.unit_amount;
   const yearPrice = product.prices.find((price) => price.interval === 'year')?.unit_amount;
   const isBillingIntervalYearly = billingInterval === 'year';
-  const metadata = productMetadataSchema.parse(product.metadata);
+  const parsed = productMetadataSchema.safeParse(product.metadata);
+  const metadata = parsed.success
+    ? parsed.data
+    : {
+        priceCardVariant: 'basic' as const,
+        generatedImages: 10,
+        imageEditor: 'basic' as const,
+        supportLevel: 'email' as const,
+      };
   const buttonVariantMap = {
     basic: 'default',
     pro: 'sexy',
