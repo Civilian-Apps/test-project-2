@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { IoCheckmark } from 'react-icons/io5';
 
@@ -23,6 +23,7 @@ export function PricingCard({
   const [billingInterval, setBillingInterval] = useState<BillingInterval>(
     price ? (price.interval as BillingInterval) : 'month'
   );
+  const [isPending, startTransition] = useTransition();
 
   // Determine the price to render
   const currentPrice = useMemo(() => {
@@ -89,7 +90,8 @@ export function PricingCard({
               <Button
                 variant={buttonVariantMap[metadata.priceCardVariant]}
                 className='w-full'
-                onClick={() => createCheckoutAction({ price: currentPrice })}
+                disabled={isPending}
+                onClick={() => startTransition(() => createCheckoutAction({ price: currentPrice }))}
               >
                 Get Started
               </Button>
