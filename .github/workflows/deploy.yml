@@ -19,16 +19,26 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
+      - name: Setup Vercel auth
+        run: |
+          # Reconstruct the CLI auth file with the long-lived refresh token.
+          # The CLI auto-refreshes the short-lived access token before each command.
+          mkdir -p ~/.local/share/com.vercel.cli
+          cat > ~/.local/share/com.vercel.cli/auth.json << EOF
+          {"token":"needs-refresh","expiresAt":0,"refreshToken":"${{ secrets.VERCEL_REFRESH_TOKEN }}"}
+          EOF
+          chmod 600 ~/.local/share/com.vercel.cli/auth.json
+
       - name: Pull Vercel environment
-        run: vercel pull --yes --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes
 
       - name: Build
-        run: vercel build ${{ github.ref == 'refs/heads/main' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build ${{ github.ref == 'refs/heads/main' && '--prod' || '' }}
 
       - name: Deploy
         id: deploy
         run: |
-          url=$(vercel deploy --prebuilt ${{ github.ref == 'refs/heads/main' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(vercel deploy --prebuilt ${{ github.ref == 'refs/heads/main' && '--prod' || '' }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview URL on PR
