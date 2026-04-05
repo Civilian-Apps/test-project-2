@@ -91,7 +91,11 @@ export function PricingCard({
                 variant={buttonVariantMap[metadata.priceCardVariant]}
                 className='w-full'
                 disabled={isPending}
-                onClick={() => startTransition(() => createCheckoutAction({ price: currentPrice }))}
+                onClick={() =>
+                  startTransition(async () => {
+                    await createCheckoutAction({ price: currentPrice });
+                  })
+                }
               >
                 Get Started
               </Button>
