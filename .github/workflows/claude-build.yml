@@ -63,7 +63,13 @@ jobs:
                git rebase origin/main
                If the rebase touches any .github/workflows/** file, abort: `git rebase --abort`, then `git reset --soft origin/main`, re-commit, and push. The branch must not modify workflow files.
             9. Push: git push -u origin claude/issue-${{ github.event.issue.number }}
-            10. Open the PR: gh pr create --fill --head claude/issue-${{ github.event.issue.number }}
+            10. Open the PR with a body that contains the closing keyword so the issue auto-closes on merge:
+                gh pr create \
+                  --title "$(git log -1 --pretty=%s)" \
+                  --body "Closes #${{ github.event.issue.number }}.
+
+                $(git log -1 --pretty=%b)" \
+                  --head claude/issue-${{ github.event.issue.number }}
             11. Do not stop until the PR is open. Do not ask for confirmation.
           claude_args: '--max-turns 40 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
 

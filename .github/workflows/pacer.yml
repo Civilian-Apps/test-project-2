@@ -80,6 +80,11 @@ jobs:
 
       - name: Promote approved to ready-to-build
         run: |
+          # GitHub label API is eventually-consistent — the 'Unblock' step above
+          # may have just added 'approved' to issues, and listing by label can
+          # still return stale results. Give it a moment to settle.
+          sleep 5
+
           ACTIVE=$(gh issue list --label "ready-to-build" --state open --json number -q 'length')
 
           MAX_CONCURRENT=3
