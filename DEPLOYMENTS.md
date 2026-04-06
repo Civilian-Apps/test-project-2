@@ -6,4 +6,4 @@
 
 | Environment | URL                                             | Provider | Deployed at          | Commit  | Notes                                                                                                     |
 | ----------- | ----------------------------------------------- | -------- | -------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
-| production | https://test-project-2-three.vercel.app | Vercel | 2026-04-06T16:43:48Z | 45be15b | deployed by @tomas-kubis |
+| production | https://test-project-2-civilian-apps.vercel.app | Vercel | 2026-04-06T16:49:33Z | da07175 | deployed by @tomas-kubis |
