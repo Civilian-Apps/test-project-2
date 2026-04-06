@@ -48,16 +48,24 @@ jobs:
           prompt: |
             You are implementing a GitHub issue end-to-end. This is NOT a conversation — you must do the work.
 
+            HARD RULE: Never create, edit, or delete any file under .github/workflows/ or .github/actions/. The action's token lacks the `workflows` scope and the push will be rejected. If the issue asks for workflow changes, stop and post a comment on the issue explaining this.
+
             Steps (follow in order, use the Bash/Edit/Write tools):
-            1. Read the issue body with: gh issue view ${{ github.event.issue.number }} --json title,body
-            2. Create a feature branch: git checkout -b claude/issue-${{ github.event.issue.number }}
+            1. Read the issue body: gh issue view ${{ github.event.issue.number }} --json title,body
+            2. Fetch the latest default branch so the base is current: git fetch origin main && git checkout -b claude/issue-${{ github.event.issue.number }} origin/main
             3. Follow TDD: write a failing test first, then minimum code to pass, then refactor.
             4. Run the FULL test suite, lint, and type check. Fix anything that breaks.
             5. Update CHANGELOG.md per rules/changelog-rule.md.
-            6. Commit with a conventional-commit message referencing the issue (e.g. "feat: add /terms page (#${{ github.event.issue.number }})").
-            7. Push the branch and open a PR with: gh pr create --fill --head claude/issue-${{ github.event.issue.number }}
-            8. Do not stop until the PR is open. Do not ask for confirmation.
-          claude_args: '--max-turns 30 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
+            6. Stage ONLY the files you intentionally changed (git add <paths>). Never `git add -A` the .github/ directory. Verify with `git status` that no .github/workflows/** files are staged.
+            7. Commit with a conventional-commit message referencing the issue, e.g. "feat: add /terms page (#${{ github.event.issue.number }})".
+            8. Rebase onto latest main in case it moved during your work:
+               git fetch origin main
+               git rebase origin/main
+               If the rebase touches any .github/workflows/** file, abort: `git rebase --abort`, then `git reset --soft origin/main`, re-commit, and push. The branch must not modify workflow files.
+            9. Push: git push -u origin claude/issue-${{ github.event.issue.number }}
+            10. Open the PR: gh pr create --fill --head claude/issue-${{ github.event.issue.number }}
+            11. Do not stop until the PR is open. Do not ask for confirmation.
+          claude_args: '--max-turns 40 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
 
       - name: Classify result
         if: always()
