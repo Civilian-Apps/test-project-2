@@ -36,6 +36,14 @@ jobs:
           node-version: '22'
       - run: npm install
 
+      # Install the Supabase CLI binary so the agent can run `supabase start`
+      # and `npm run gen:types` if it touches supabase/migrations/. The CLI
+      # itself is a small download (~30s); `supabase start` is only invoked
+      # by the agent when it actually needs DB types regenerated.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
       - name: Check dependencies
         run: |
           ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --json body -q '.body')
@@ -68,19 +76,26 @@ jobs:
             - Never create, edit, or delete any file under .github/workflows/ or .github/actions/. The action's token lacks the `workflows` scope; the push will be rejected. If the issue asks for workflow changes, stop and post a comment on the issue explaining you cannot.
             - The PR body MUST start with `Closes #${{ env.ISSUE_NUM }}.` (literal — GitHub uses this to auto-close on merge).
             - Stage explicit paths only with `git add <paths>`. Never `git add -A`. Never include `.github/**` in any commit.
+            - VISIBILITY: Step 0 below (post a starting comment on the issue) is mandatory. Do it before anything else. Without it, the human watching the issue list has zero signal that work has begun.
+            - GEN:TYPES: `npm run gen:types` requires a running local Supabase. If your changes touch `supabase/migrations/**`, FIRST run `supabase start` (takes ~2 min for the initial Docker pull, then fast on subsequent calls) BEFORE running `npm run gen:types`. If your changes do NOT touch `supabase/migrations/**`, you do not need gen:types and you must NOT run `supabase start` — it just wastes time. Never run `gen:types` against a stopped Supabase; it will hang.
 
-            TURN BUDGET DISCIPLINE: You have 90 turns. Aim to push by turn 60. If you reach turn 70 without a pushed branch, STOP iterating and ship what you have:
+            TURN BUDGET DISCIPLINE: You have 60 turns. Aim to push by turn 40. If you reach turn 50 without a pushed branch, STOP iterating and ship what you have:
               - commit current work-in-progress with message prefix `wip: ` if not finished
               - push the branch
               - open the PR with a body that says `Closes #${{ env.ISSUE_NUM }}. WIP — hit turn budget at step X.`
               A WIP PR is recoverable; no PR is a dead build that humans must restart.
 
+            HEARTBEAT: After turn 20 (if you have not yet pushed) post a brief progress comment on the issue with `gh issue comment ${{ env.ISSUE_NUM }} --body "Turn ~20: <one-sentence summary of current state>"`. This is not optional — it is the only way the human watcher knows you are still alive.
+
             Steps (follow in order, use the Bash/Edit/Write tools):
+            0. MANDATORY FIRST ACTION — post a starting comment on the issue so it is visible from the issue page that work has begun:
+                 gh issue comment ${{ env.ISSUE_NUM }} --body "Started building. Branch \`claude/issue-${{ env.ISSUE_NUM }}\` will be pushed and a PR opened when ready."
+               Do this BEFORE step 1. Do not skip.
             1. Read the issue body: gh issue view ${{ env.ISSUE_NUM }} --json title,body
             2. Read CHANGELOG.md (top 30 lines) to see what other recent issues touched — this tells you what shared files (CHANGELOG, tsconfig, jest config, package.json) might conflict.
             3. Fetch the latest default branch so the base is current: git fetch origin main && git checkout -b claude/issue-${{ env.ISSUE_NUM }} origin/main
             4. Follow TDD: write a failing test first, then minimum code to pass, then refactor. Vertical slices.
-            5. Run the FULL test suite, lint, and type check. Fix anything that breaks.
+            5. Run the FULL test suite, lint, and type check. Fix anything that breaks. If your changes touch `supabase/migrations/**`, also run `supabase start && npm run gen:types` exactly once before running tests, so the generated types in `src/libs/supabase/types.ts` reflect the new schema.
             6. Update CHANGELOG.md per rules/changelog-rule.md — append a new dated entry, never overwrite existing entries.
             7. Stage explicit paths and commit with a conventional-commit subject, e.g. `feat: add /terms page`.
             8. Rebase onto latest main in case it moved during your work:
@@ -101,7 +116,7 @@ jobs:
                 $(git log -1 --pretty=%b)" \
                   --head claude/issue-${{ env.ISSUE_NUM }}
             11. Do not stop until the PR is open. Do not ask for confirmation.
-          claude_args: '--max-turns 90 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
+          claude_args: '--max-turns 60 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
 
       - name: Classify result
         if: always()
