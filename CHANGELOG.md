@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-06] — #8 admin feedback dashboard page
+
+- Added: `src/app/admin/feedback/page.tsx` — Server Component at `/admin/feedback` that authenticates the caller, gates on `user.app_metadata.role === 'admin'` (calling `forbidden()` for non-admins and `redirect('/login')` for unauthenticated), reads `?page=N` via `await searchParams`, and calls the `list-feedback` edge function with the forwarded JWT.
+- Added: `src/entities/feedback/admin-list-feedback.ts` — `fetchAdminFeedback({ page, pageSize, accessToken })` server-side wrapper around the `list-feedback` edge function returning `{ data, error }`.
+- Added: `src/app/admin/feedback/feedback-table.tsx` — client `FeedbackTable` built on `@tanstack/react-table` with columns `Submitted` (relative time), `Subject`, `Body` (truncated to 200 chars with ellipsis), `User`, plus URL-driven Previous/Next pagination links.
+- Added: shadcn `Table` primitives in `src/components/ui/table.tsx`.
+- Added: `src/app/admin/feedback/page.test.tsx` covering admin happy path, body truncation, empty state, non-admin `forbidden()`, unauthenticated `redirect()`, and `?page=N` forwarding.
+- Changed: `package.json` adds `@tanstack/react-table`.
+- Files: `src/app/admin/feedback/page.tsx`, `src/app/admin/feedback/feedback-table.tsx`, `src/app/admin/feedback/page.test.tsx`, `src/entities/feedback/admin-list-feedback.ts`, `src/components/ui/table.tsx`, `package.json`
+
 ## [2026-04-06] — #7 feedback submission form
 
 - Added: `src/features/feedback/FeedbackForm.tsx` — client component dialog form (`react-hook-form` + `zodResolver`, reusing `FeedbackInput`) that POSTs to the `create-feedback` edge function with the user's JWT and shows success / error toasts.
