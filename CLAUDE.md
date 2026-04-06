@@ -1,5 +1,7 @@
 # {PROJECT_NAME}
 
+> **Mid-debugging session on the autonomous build pipeline.** Before touching `.github/workflows/`, the build prompt, the pacer, the auto-merge workflow, or anything pipeline-related: READ `~/civilian-apps/studio/operations/pipeline-session-2026-04-06-handoff.md`. 7 bugs fixed this session, 2 pending one-line fixes (Bug 8: auto-merge workflow needs `issues: write`; Bug 9: parallel PRs collide on CHANGELOG.md). Full ledger and resume instructions there.
+
 ## Stack
 
 - Next.js 15+ (App Router) + TypeScript + Tailwind + shadcn/ui
