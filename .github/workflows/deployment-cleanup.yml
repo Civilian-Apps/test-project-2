@@ -1,0 +1,43 @@
+name: Cleanup deployment record
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  remove-preview-row:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove preview row from DEPLOYMENTS.md
+        run: |
+          ENV_ID="preview-pr-${{ github.event.pull_request.number }}"
+          if [[ ! -f DEPLOYMENTS.md ]]; then
+            echo "No DEPLOYMENTS.md to update"
+            exit 0
+          fi
+          grep -v "^| ${ENV_ID} |" DEPLOYMENTS.md > DEPLOYMENTS.md.tmp || true
+          mv DEPLOYMENTS.md.tmp DEPLOYMENTS.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DEPLOYMENTS.md
+          if git diff --staged --quiet; then
+            echo "No row to remove"
+            exit 0
+          fi
+          git commit -m "chore: remove preview-pr-${{ github.event.pull_request.number }} from DEPLOYMENTS.md [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin main && exit 0
+            sleep $((i * 2))
+          done
+          exit 1

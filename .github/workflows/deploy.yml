@@ -13,6 +13,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+      environment: ${{ steps.deploy.outputs.environment }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,8 +31,25 @@ jobs:
       - name: Deploy
         id: deploy
         run: |
-          url=$(vercel deploy --prebuilt ${{ github.ref == 'refs/heads/main' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+            # Resolve the canonical production alias from the Vercel API (so we record the
+            # stable URL like `test-project-kappa-virid.vercel.app`, not the per-deploy hash URL).
+            ALIAS=$(curl -sf "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}" \
+              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+              | jq -r '.targets.production.alias[0] // empty')
+            if [[ -n "$ALIAS" ]]; then
+              URL="https://${ALIAS}"
+            else
+              URL="$DEPLOY_URL"
+            fi
+            echo "url=$URL" >> "$GITHUB_OUTPUT"
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+          else
+            URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+            echo "url=$URL" >> "$GITHUB_OUTPUT"
+            echo "environment=preview-pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request'
@@ -42,3 +62,42 @@ jobs:
               issue_number: context.issue.number,
               body: `✅ Preview deployed: ${{ steps.deploy.outputs.url }}`
             })
+
+  record:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Always record on `main` so DEPLOYMENTS.md is the single registry of every active
+      # deployment across production + open PR previews. Avoids cross-branch commit headaches.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update DEPLOYMENTS.md
+        run: |
+          chmod +x .github/scripts/update-deployments.sh
+          .github/scripts/update-deployments.sh \
+            "${{ needs.deploy.outputs.environment }}" \
+            "${{ needs.deploy.outputs.url }}" \
+            "${{ github.sha }}" \
+            "${{ github.actor }}"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DEPLOYMENTS.md
+          if git diff --staged --quiet; then
+            echo "No changes to DEPLOYMENTS.md"
+            exit 0
+          fi
+          git commit -m "chore: record ${{ needs.deploy.outputs.environment }} deployment [skip ci]"
+          # Tiny race protection in case two deploys land simultaneously.
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin main && exit 0
+            sleep $((i * 2))
+          done
+          exit 1
