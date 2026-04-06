@@ -3,14 +3,21 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
+import { listMyTags } from '@/entities/tag/queries';
 import { getSession } from '@/features/account/controllers/get-session';
 import { getSubscription } from '@/features/account/controllers/get-subscription';
 import { PricingCard } from '@/features/pricing/components/price-card';
 import { getProducts } from '@/features/pricing/controllers/get-products';
 import { Price, ProductWithPrices } from '@/features/pricing/types';
+import { TagPicker } from '@/features/tags/TagPicker';
 
 export default async function AccountPage() {
-  const [session, subscription, products] = await Promise.all([getSession(), getSubscription(), getProducts()]);
+  const [session, subscription, products, tagsResult] = await Promise.all([
+    getSession(),
+    getSubscription(),
+    getProducts(),
+    listMyTags(),
+  ]);
 
   if (!session) {
     redirect('/login');
@@ -54,6 +61,10 @@ export default async function AccountPage() {
           ) : (
             <p>You don&apos;t have an active subscription</p>
           )}
+        </Card>
+
+        <Card title='Your Tags'>
+          <TagPicker tags={tagsResult.data ?? []} />
         </Card>
       </div>
     </section>

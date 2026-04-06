@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-06] — #40 tag picker on account page
+
+- Added: `src/features/tags/TagPicker.tsx` — client component rendering existing tags as removable chips with an inline "+ Add tag" form (`react-hook-form` + `zodResolver` reusing `TagInput`). Calls `createTag` on submit and `softDeleteTag` on chip removal with optimistic update + rollback.
+- Added: `src/features/tags/TagPicker.test.tsx` — covers chip render, opening the add form, successful submit (mocked action), chip removal (mocked action), and empty-name validation.
+- Added: `src/entities/tag/actions.ts` — `createTag` and `softDeleteTag` server actions with auth check, Zod validation, RLS-scoped writes, and structured `{ data, error }` returns.
+- Added: `src/entities/tag/queries.ts` — `listMyTags` server-side fetch returning the current user's non-deleted tags ordered by `created_at`.
+- Changed: `src/app/(account)/account/page.tsx` mounts `<TagPicker>` in a "Your Tags" card below the existing plan card, fetching tags server-side via `listMyTags`.
+- Files: `src/features/tags/TagPicker.tsx`, `src/features/tags/TagPicker.test.tsx`, `src/entities/tag/actions.ts`, `src/entities/tag/queries.ts`, `src/app/(account)/account/page.tsx`
+
 ## [2026-04-06] — #32 tag entity (table, types, RLS)
 
 - Added: `supabase/migrations/20260406020000_create_tag.sql` — `public.tag` table (`id`, `user_id`, `name`, `color`, `created_at`, `deleted_at`) with `CHECK` constraints on name length (1..40) and 6-digit hex color, partial unique index on `(user_id, name) WHERE deleted_at IS NULL`, RLS enabled, and SELECT/INSERT/UPDATE policies scoped to `auth.uid() = user_id`.
