@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-06] — #32 tag entity (table, types, RLS)
+
+- Added: `supabase/migrations/20260406020000_create_tag.sql` — `public.tag` table (`id`, `user_id`, `name`, `color`, `created_at`, `deleted_at`) with `CHECK` constraints on name length (1..40) and 6-digit hex color, partial unique index on `(user_id, name) WHERE deleted_at IS NULL`, RLS enabled, and SELECT/INSERT/UPDATE policies scoped to `auth.uid() = user_id`.
+- Added: `src/entities/tag/types.ts` — `TagInput` and `Tag` Zod schemas plus inferred TypeScript types (single source of truth).
+- Added: `src/entities/tag/definition.md` — canonical business rules for the tag entity (ownership, name/color constraints, soft delete, RLS scope, no DELETE policy).
+- Added: `src/entities/tag/tag.test.ts` — schema tests covering empty name, oversize name, invalid hex colours, valid uppercase hex, full row parsing, and a compile-time check that `Tag` aligns with the generated `Database['public']['Tables']['tag']['Row']` type.
+- Changed: `src/libs/supabase/types.ts` — regenerated to include the new `tag` table Row/Insert/Update definitions and the `tag_user_id_fkey` relationship.
+- Files: `supabase/migrations/20260406020000_create_tag.sql`, `src/entities/tag/types.ts`, `src/entities/tag/definition.md`, `src/entities/tag/tag.test.ts`, `src/libs/supabase/types.ts`
+
 ## [2026-04-06] — #7 feedback submission form
 
 - Added: `src/features/feedback/FeedbackForm.tsx` — client component dialog form (`react-hook-form` + `zodResolver`, reusing `FeedbackInput`) that POSTs to the `create-feedback` edge function with the user's JWT and shows success / error toasts.
