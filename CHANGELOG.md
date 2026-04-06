@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-06] — #25 tag entity (table, types, RLS)
+
+- Added: `supabase/migrations/20260406020000_create_tag.sql` — `public.tag` table with `id`, `user_id` (FK to `auth.users` ON DELETE CASCADE), `name`, `color`, `created_at`, `updated_at`, `deleted_at`. CHECK constraints enforce `name` length 1..40 and `color` matching `^#[0-9a-fA-F]{6}$`. Partial unique index `(user_id, name) WHERE deleted_at IS NULL` enforces no duplicate tag name per user among non-deleted rows. Partial index on `user_id` for cheap per-user lookups.
+- Added: RLS enabled on `tag` with SELECT, INSERT, and UPDATE policies all scoped to `auth.uid() = user_id`. No DELETE policy — deletes go through soft-delete via UPDATE.
+- Added: `src/entities/tag/types.ts` — Zod `TagInput` (name, color) and `Tag` (full row) schemas with inferred TS types. Hex regex rejects 3-digit shorthand and non-hex characters.
+- Added: `src/entities/tag/definition.md` — canonical business rules for the tag entity (root of the Project Tags feature).
+- Added: `src/entities/tag/tag.test.ts` — verifies `TagInput` accepts valid input, rejects empty / over-long names, rejects malformed hex colors (missing `#`, shorthand, non-hex), accepts uppercase hex, and that the generated DB `Row` type aligns with the Zod-parsed shape.
+- Changed: `src/libs/supabase/types.ts` regenerated via `npm run gen:types` against the new local migration; now includes `Database['public']['Tables']['tag']`.
+- Files: `supabase/migrations/20260406020000_create_tag.sql`, `src/entities/tag/types.ts`, `src/entities/tag/definition.md`, `src/entities/tag/tag.test.ts`, `src/libs/supabase/types.ts`
+
 ## [2026-04-06] — #7 feedback submission form
 
 - Added: `src/features/feedback/FeedbackForm.tsx` — client component dialog form (`react-hook-form` + `zodResolver`, reusing `FeedbackInput`) that POSTs to the `create-feedback` edge function with the user's JWT and shows success / error toasts.
