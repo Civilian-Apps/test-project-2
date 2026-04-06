@@ -3,7 +3,33 @@ on:
   pull_request:
     types: [opened, synchronize]
 jobs:
-  review:
+  # The test-suite job is the merge gate. Keep it dependency-light and
+  # deterministic — it's the required status check on main, so anything
+  # flaky here will block all PRs.
+  test-suite:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+
+      - name: Test, type check, lint
+        run: |
+          npm test -- --passWithNoTests
+          npx tsc --noEmit
+          npm run lint
+
+  # The claude-review job runs an AI review pass. Advisory only — it can
+  # fail (turn cap, rate limit, action bugs) without blocking the merge.
+  # Depends on test-suite so we don't waste API spend reviewing broken code.
+  claude-review:
+    needs: test-suite
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -14,28 +40,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npm install
-
-      - name: Run full test suite
-        run: |
-          npm test -- --passWithNoTests
-          npx tsc --noEmit
-          npm run lint
 
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: 'claude'
+          show_full_output: true
           prompt: |
             Review this PR. Read the linked Issue for the feature spec.
             Check: does the implementation match the acceptance criteria?
             Check: are there regressions in existing functionality?
             Check: does the code follow rules/app-spec.md and CLAUDE.md?
-            The full test suite has already run above — if it failed,
-            flag that the PR is not ready.
+            The full test suite has already run and passed — focus on
+            design, edge cases, and spec adherence.
             Post your review as PR comments.
             If everything passes, add the label "ready-for-human-review".
-          claude_args: '--max-turns 10 --model claude-sonnet-4-6 --allowedTools Bash(git*),Read,GlobTool,GrepTool'
+          claude_args: '--max-turns 15 --model claude-sonnet-4-6 --allowedTools Bash(git*),Read,Glob,Grep'
