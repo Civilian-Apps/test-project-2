@@ -107,9 +107,10 @@ jobs:
         if: always()
         run: |
           # The action does NOT set outputs.conclusion reliably (it's almost always
-          # empty), but the step's own conclusion (success/failure/cancelled) is
-          # populated correctly via continue-on-error semantics. Use that instead.
-          STEP_CONCLUSION="${{ steps.claude-build.conclusion }}"
+          # empty). Use the step's own outcome — NOT conclusion — because with
+          # continue-on-error: true the conclusion is always "success" (it reflects
+          # the post-continue-on-error state). outcome reflects the actual result.
+          STEP_CONCLUSION="${{ steps.claude-build.outcome }}"
           ELAPSED=$(( $(date +%s) - ${{ steps.timer.outputs.start }} ))
 
           echo "Step conclusion: $STEP_CONCLUSION"
