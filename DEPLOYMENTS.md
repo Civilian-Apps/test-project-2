@@ -6,4 +6,4 @@
 
 | Environment | URL                                             | Provider | Deployed at          | Commit  | Notes                                                                                                     |
 | ----------- | ----------------------------------------------- | -------- | -------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
-| production  | https://test-project-2-civilian-apps.vercel.app | Vercel   | 2026-04-06T00:00:00Z | unknown | Standard `<name>-civilian-apps` alias. Seeded by hand on 2026-04-06 — will be overwritten on next deploy. |
+| production | https://test-project-2-three.vercel.app | Vercel | 2026-04-06T16:43:48Z | 45be15b | deployed by @tomas-kubis |
