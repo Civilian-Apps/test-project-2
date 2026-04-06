@@ -69,6 +69,11 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
+          # Allow workflow_dispatch runs initiated by the pacer
+          # (github-actions[bot]) to execute. Without this the action
+          # aborts with "Workflow initiated by non-human actor" and
+          # the autonomous cascade dies at the first pacer dispatch.
+          allowed_bots: '*'
           prompt: |
             You are implementing GitHub issue #${{ env.ISSUE_NUM }} end-to-end. This is NOT a conversation — you must do the work and open a PR.
 
