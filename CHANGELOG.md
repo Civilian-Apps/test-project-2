@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-06] — #7 feedback submission form
+
+- Added: `src/features/feedback/FeedbackForm.tsx` — client component dialog form (`react-hook-form` + `zodResolver`, reusing `FeedbackInput`) that POSTs to the `create-feedback` edge function with the user's JWT and shows success / error toasts.
+- Added: `src/features/feedback/FeedbackForm.test.tsx` covering dialog open, empty-submit validation, successful submission, and 400 server-error toast (mocking `fetch` and the Supabase browser client).
+- Added: shadcn `Dialog`, `Textarea`, and `Label` primitives in `src/components/ui/` to support the form.
+- Added: `src/libs/supabase/supabase-browser-client.ts` — `createBrowserClient`-based helper used by client components to obtain the current session JWT.
+- Changed: `src/app/layout.tsx` footer "Support" column now includes a "Send feedback" entry that mounts `FeedbackForm`.
+- Changed: `package.json` adds `react-hook-form` and `@hookform/resolvers` dependencies.
+- Files: `src/features/feedback/FeedbackForm.tsx`, `src/features/feedback/FeedbackForm.test.tsx`, `src/components/ui/dialog.tsx`, `src/components/ui/textarea.tsx`, `src/components/ui/label.tsx`, `src/libs/supabase/supabase-browser-client.ts`, `src/app/layout.tsx`, `package.json`
+
 ## [2026-04-06] — #6 list-feedback admin edge function
 
 - Added: `supabase/functions/list-feedback/index.ts` Deno edge function entry that builds user-scoped + service-role Supabase clients and delegates to a pure handler.
@@ -12,6 +22,7 @@ All notable changes to this project will be documented in this file.
 - Changed: `src/entities/feedback/definition.md` documents the admin role decision (JWT claim over `user_roles` table) and the service-role usage exception.
 - Changed: `tsconfig.json` and `jest.config.ts` exclude `supabase/functions/` (Deno runtime, not typechecked or unit-tested by Jest).
 - Files: `supabase/functions/list-feedback/index.ts`, `src/entities/feedback/list-feedback.ts`, `src/entities/feedback/list-feedback.test.ts`, `src/entities/feedback/types.ts`, `src/entities/feedback/definition.md`, `tsconfig.json`, `jest.config.ts`
+
 ## [2026-04-06] — #5 create-feedback edge function (REST + MCP)
 
 - Added: `supabase/functions/create-feedback/handler.ts` — pure handler validating `FeedbackInput` (shared Zod schema), extracting identity from the `Authorization: Bearer <jwt>` header, supporting `Idempotency-Key` replay, and returning structured `{ id, created_at }` / `{ error: { error_code, message, fields? } }` responses (200/400/401/405/500).
