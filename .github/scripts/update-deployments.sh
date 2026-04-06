@@ -30,8 +30,10 @@ if [[ ! -f "$FILE" ]]; then
 HEADER
 fi
 
-# Drop any existing row for this environment (matches at start of line, with surrounding pipes).
-grep -v "^| ${ENV_ID} |" "$FILE" > "${FILE}.tmp" || true
+# Drop any existing row for this environment. Whitespace-tolerant so it survives
+# both the tight format written by this script and the padded format produced by
+# prettier when a dev happens to reformat the file locally.
+grep -vE "^\|[[:space:]]*${ENV_ID}[[:space:]]*\|" "$FILE" > "${FILE}.tmp" || true
 mv "${FILE}.tmp" "$FILE"
 
 # Append the new row.
