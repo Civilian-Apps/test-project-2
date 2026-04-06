@@ -1,4 +1,4 @@
-name: Vercel Auth Health Check
+name: Vercel Token Health Check
 
 on:
   schedule:
@@ -6,31 +6,23 @@ on:
   workflow_dispatch: # Manual trigger
 
 jobs:
-  check-auth:
+  check-token:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Setup Vercel auth
-        run: |
-          mkdir -p ~/.local/share/com.vercel.cli
-          cat > ~/.local/share/com.vercel.cli/auth.json << EOF
-          {"token":"needs-refresh","expiresAt":0,"refreshToken":"${{ secrets.VERCEL_REFRESH_TOKEN }}"}
-          EOF
-          chmod 600 ~/.local/share/com.vercel.cli/auth.json
-
-      - name: Test auth refresh
+      - name: Validate Vercel token
         id: check
         run: |
-          if vercel whoami 2>/dev/null; then
-            echo "valid=true" >> "$GITHUB_OUTPUT"
-          else
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            https://api.vercel.com/v2/user)
+          if [ "$STATUS" != "200" ]; then
             echo "valid=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Vercel refresh token is invalid. Run 'vercel login' on the droplet and update VERCEL_REFRESH_TOKEN secret."
+            echo "::error::Vercel token is invalid or expired (HTTP $STATUS)"
+          else
+            echo "valid=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create issue if auth broken
+      - name: Create issue if token expired
         if: steps.check.outputs.valid == 'false'
         uses: actions/github-script@v7
         with:
@@ -42,19 +34,20 @@ jobs:
               state: 'open',
               per_page: 100,
             });
-            const alreadyOpen = existing.data.some(i => i.title.includes('Vercel auth broken'));
+            const alreadyOpen = existing.data.some(i => i.title.includes('Vercel token expired'));
             if (!alreadyOpen) {
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: '🔑 Vercel auth broken — deployments are failing',
+                title: '🔑 Vercel token expired — deployments are failing',
                 body: [
-                  'The `VERCEL_REFRESH_TOKEN` secret in this repo can no longer obtain a valid access token.',
+                  'The `VERCEL_TOKEN` secret in this repo is invalid or expired.',
                   '',
                   '**Fix:**',
-                  '1. On the droplet: `vercel login`',
-                  '2. Get the new refresh token: `cat ~/.local/share/com.vercel.cli/auth.json | python3 -c "import sys,json;print(json.load(sys.stdin)[\'refreshToken\'])"`',
-                  '3. Update `VERCEL_REFRESH_TOKEN` secret in this repo and all other project repos',
+                  '1. Go to https://vercel.com/account/tokens',
+                  '2. Create a new Personal Access Token (name: `github-actions-deploy`, scope: `civilian-apps`)',
+                  '3. Update the `VERCEL_TOKEN` secret in this repo and all other project repos',
+                  '4. Update `~/.config/civilian-apps/secrets.env` on the droplet',
                   '',
                   'All deployments are blocked until this is resolved.',
                 ].join('\n'),
