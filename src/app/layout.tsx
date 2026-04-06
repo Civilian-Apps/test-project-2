@@ -6,6 +6,7 @@ import { IoLogoFacebook, IoLogoInstagram, IoLogoTwitter } from 'react-icons/io5'
 
 import { Logo } from '@/components/logo';
 import { Toaster } from '@/components/ui/toaster';
+import { FeedbackForm } from '@/features/feedback/FeedbackForm';
 import { cn } from '@/utils/cn';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -84,6 +85,7 @@ function Footer() {
             <div className='font-semibold text-neutral-100'>Support</div>
             <nav className='flex flex-col gap-2 lg:gap-6'>
               <Link href='/support'>Get Support</Link>
+              <FeedbackForm />
             </nav>
           </div>
           <div className='flex flex-col gap-2 lg:gap-6'>
