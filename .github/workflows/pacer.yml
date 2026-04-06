@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      # Required for `gh workflow run` to dispatch Build Feature.
+      # Label flips alone don't trigger downstream workflows when made by GITHUB_TOKEN.
+      actions: write
     steps:
       - name: Retry rate-limited issues (immediate, up to 3x)
         if: >
@@ -30,6 +33,7 @@ jobs:
 
             if [ "$RETRY_COUNT" -lt 3 ]; then
               NEXT=$((RETRY_COUNT + 1))
+              # Move back to approved so the Promote step picks it up and dispatches
               gh issue edit $ISSUE --remove-label "rate-limited" --add-label "approved"
               gh issue comment $ISSUE --body "Auto-retry $NEXT/3"
               echo "Requeued #$ISSUE (retry $NEXT/3)"
@@ -78,7 +82,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
 
-      - name: Promote approved to ready-to-build
+      - name: Promote approved to ready-to-build and dispatch builds
         run: |
           # GitHub label API is eventually-consistent — the 'Unblock' step above
           # may have just added 'approved' to issues, and listing by label can
@@ -104,7 +108,7 @@ jobs:
             BODY=$(gh issue view $ISSUE --json body -q '.body')
             HAS_DEPS=false
             for DEP in $(echo "$BODY" | grep -oP '#\d+' | head -10); do
-              STATE=$(gh issue view ${DEP#\#} --json state -q '.state')
+              STATE=$(gh issue view ${DEP#\#} --json state -q '.state' 2>/dev/null || echo "OPEN")
               if [ "$STATE" != "CLOSED" ]; then
                 HAS_DEPS=true
                 gh issue edit $ISSUE --add-label "blocked" --remove-label "approved" 2>/dev/null || true
@@ -113,9 +117,13 @@ jobs:
             done
 
             if [ "$HAS_DEPS" = "false" ]; then
+              # Label change is documentation; the actual trigger is workflow_dispatch
+              # because GitHub does not chain workflows from label events made by
+              # GITHUB_TOKEN (anti-recursion safety).
               gh issue edit $ISSUE --add-label "ready-to-build" --remove-label "approved"
+              gh workflow run "Build Feature" -F issue_number="$ISSUE"
               LABELED=$((LABELED + 1))
-              echo "Promoted #$ISSUE"
+              echo "Promoted and dispatched #$ISSUE"
             fi
           done
 

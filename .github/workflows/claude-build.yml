@@ -2,15 +2,31 @@ name: Build Feature
 on:
   issues:
     types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to build'
+        required: true
+        type: string
 jobs:
   build:
-    if: github.event.label.name == 'ready-to-build'
+    # Run when issue gets the ready-to-build label, OR when dispatched manually
+    # (the pacer uses workflow_dispatch because GITHUB_TOKEN label events do not
+    # chain to other workflows — anti-recursion safety in GitHub Actions).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'ready-to-build')
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       issues: write
       id-token: write
+    env:
+      # Resolve issue number for both event types so the rest of the job can
+      # use $ISSUE_NUM uniformly. Used by Check dependencies, Classify result,
+      # and exposed to the Claude prompt.
+      ISSUE_NUM: ${{ github.event.issue.number || github.event.inputs.issue_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,13 +38,13 @@ jobs:
 
       - name: Check dependencies
         run: |
-          ISSUE_BODY=$(gh issue view ${{ github.event.issue.number }} --json body -q '.body')
+          ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --json body -q '.body')
           DEPS=$(echo "$ISSUE_BODY" | grep -oP '#\d+' | head -10)
           for dep in $DEPS; do
             STATE=$(gh issue view ${dep#\#} --json state -q '.state')
             if [ "$STATE" != "CLOSED" ]; then
-              gh issue comment ${{ github.event.issue.number }} --body "Blocked: waiting on $dep"
-              gh issue edit ${{ github.event.issue.number }} --remove-label ready-to-build --add-label blocked
+              gh issue comment "$ISSUE_NUM" --body "Blocked: waiting on $dep"
+              gh issue edit "$ISSUE_NUM" --remove-label ready-to-build --add-label blocked
               exit 1
             fi
           done
@@ -46,86 +62,108 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
           prompt: |
-            You are implementing a GitHub issue end-to-end. This is NOT a conversation — you must do the work.
+            You are implementing GitHub issue #${{ env.ISSUE_NUM }} end-to-end. This is NOT a conversation — you must do the work and open a PR.
 
-            HARD RULE: Never create, edit, or delete any file under .github/workflows/ or .github/actions/. The action's token lacks the `workflows` scope and the push will be rejected. If the issue asks for workflow changes, stop and post a comment on the issue explaining this.
+            HARD RULES (violating any of these breaks the pipeline):
+            - Never create, edit, or delete any file under .github/workflows/ or .github/actions/. The action's token lacks the `workflows` scope; the push will be rejected. If the issue asks for workflow changes, stop and post a comment on the issue explaining you cannot.
+            - The PR body MUST start with `Closes #${{ env.ISSUE_NUM }}.` (literal — GitHub uses this to auto-close on merge).
+            - Stage explicit paths only with `git add <paths>`. Never `git add -A`. Never include `.github/**` in any commit.
+
+            TURN BUDGET DISCIPLINE: You have 90 turns. Aim to push by turn 60. If you reach turn 70 without a pushed branch, STOP iterating and ship what you have:
+              - commit current work-in-progress with message prefix `wip: ` if not finished
+              - push the branch
+              - open the PR with a body that says `Closes #${{ env.ISSUE_NUM }}. WIP — hit turn budget at step X.`
+              A WIP PR is recoverable; no PR is a dead build that humans must restart.
 
             Steps (follow in order, use the Bash/Edit/Write tools):
-            1. Read the issue body: gh issue view ${{ github.event.issue.number }} --json title,body
-            2. Fetch the latest default branch so the base is current: git fetch origin main && git checkout -b claude/issue-${{ github.event.issue.number }} origin/main
-            3. Follow TDD: write a failing test first, then minimum code to pass, then refactor.
-            4. Run the FULL test suite, lint, and type check. Fix anything that breaks.
-            5. Update CHANGELOG.md per rules/changelog-rule.md.
-            6. Stage ONLY the files you intentionally changed (git add <paths>). Never `git add -A` the .github/ directory. Verify with `git status` that no .github/workflows/** files are staged.
-            7. Commit with a conventional-commit message referencing the issue, e.g. "feat: add /terms page (#${{ github.event.issue.number }})".
+            1. Read the issue body: gh issue view ${{ env.ISSUE_NUM }} --json title,body
+            2. Read CHANGELOG.md (top 30 lines) to see what other recent issues touched — this tells you what shared files (CHANGELOG, tsconfig, jest config, package.json) might conflict.
+            3. Fetch the latest default branch so the base is current: git fetch origin main && git checkout -b claude/issue-${{ env.ISSUE_NUM }} origin/main
+            4. Follow TDD: write a failing test first, then minimum code to pass, then refactor. Vertical slices.
+            5. Run the FULL test suite, lint, and type check. Fix anything that breaks.
+            6. Update CHANGELOG.md per rules/changelog-rule.md — append a new dated entry, never overwrite existing entries.
+            7. Stage explicit paths and commit with a conventional-commit subject, e.g. `feat: add /terms page`.
             8. Rebase onto latest main in case it moved during your work:
-               git fetch origin main
-               git rebase origin/main
-               If the rebase touches any .github/workflows/** file, abort: `git rebase --abort`, then `git reset --soft origin/main`, re-commit, and push. The branch must not modify workflow files.
-            9. Push: git push -u origin claude/issue-${{ github.event.issue.number }}
-            10. Open the PR with a body that contains the closing keyword so the issue auto-closes on merge:
+                 git fetch origin main
+                 git rebase origin/main
+               CONFLICT RESOLUTION RULES (apply during rebase, then `git add` and `git rebase --continue`):
+                 - .github/workflows/** or .github/actions/** → ALWAYS take main's version (`git checkout --theirs <file>`). You must not modify workflow files.
+                 - CHANGELOG.md → keep BOTH sets of entries. The newer issue number entry goes ABOVE the older one. Never delete entries.
+                 - tsconfig.json, jest.config.ts, package.json, package-lock.json → take the union: keep both sides' additions, prefer the more permissive option (broader excludes, more dependencies).
+                 - Source files you authored (src/**, supabase/**) → resolve based on intent; both sides should usually be additive.
+                 - If you genuinely cannot resolve a conflict, `git rebase --abort`, then `git reset --soft origin/main`, recompose your work into a single commit on top of main, and push that.
+            9. Push: git push -u origin claude/issue-${{ env.ISSUE_NUM }}
+            10. Open the PR with the closing keyword in the body so the issue auto-closes on merge:
                 gh pr create \
                   --title "$(git log -1 --pretty=%s)" \
-                  --body "Closes #${{ github.event.issue.number }}.
+                  --body "Closes #${{ env.ISSUE_NUM }}.
 
                 $(git log -1 --pretty=%b)" \
-                  --head claude/issue-${{ github.event.issue.number }}
+                  --head claude/issue-${{ env.ISSUE_NUM }}
             11. Do not stop until the PR is open. Do not ask for confirmation.
           claude_args: '--max-turns 90 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
 
       - name: Classify result
         if: always()
         run: |
-          CONCLUSION="${{ steps.claude-build.outputs.conclusion }}"
-          EXEC_FILE="${{ steps.claude-build.outputs.execution_file }}"
+          # The action does NOT set outputs.conclusion reliably (it's almost always
+          # empty), but the step's own conclusion (success/failure/cancelled) is
+          # populated correctly via continue-on-error semantics. Use that instead.
+          STEP_CONCLUSION="${{ steps.claude-build.conclusion }}"
           ELAPSED=$(( $(date +%s) - ${{ steps.timer.outputs.start }} ))
 
-          echo "Conclusion: $CONCLUSION"
+          echo "Step conclusion: $STEP_CONCLUSION"
           echo "Elapsed: ${ELAPSED}s"
-          echo "Execution file: $EXEC_FILE"
 
-          # Success — nothing to do
-          if [ "$CONCLUSION" = "success" ]; then
+          # Branch fallback: even when Claude hits max-turns or the action
+          # mis-reports, if a feature branch was successfully pushed AND a PR
+          # is open, the build effectively succeeded.
+          ISSUE_NUM=${{ github.event.issue.number || github.event.inputs.issue_number }}
+          BRANCH_PUSHED=$(git ls-remote --heads origin "claude/issue-${ISSUE_NUM}" | wc -l)
+          PR_OPEN=$(gh pr list --head "claude/issue-${ISSUE_NUM}" --state open --json number -q 'length')
+
+          echo "Branch pushed: $BRANCH_PUSHED"
+          echo "PR open: $PR_OPEN"
+
+          # Success: step succeeded OR a PR is open for the issue's branch
+          if [ "$STEP_CONCLUSION" = "success" ] || [ "$PR_OPEN" -gt 0 ]; then
             echo "Build succeeded."
+            # Move issue from ready-to-build to ready-for-human-review (PR exists)
+            if [ "$PR_OPEN" -gt 0 ]; then
+              gh issue edit "$ISSUE_NUM" \
+                --remove-label ready-to-build \
+                --add-label ready-for-human-review 2>/dev/null || true
+            fi
             exit 0
           fi
 
-          # Check if execution file exists and has meaningful content
-          HAS_CONTENT=false
-          if [ -n "$EXEC_FILE" ] && [ -f "$EXEC_FILE" ]; then
-            LINES=$(wc -l < "$EXEC_FILE")
-            if [ "$LINES" -gt 2 ]; then
-              HAS_CONTENT=true
-            fi
-          fi
-
-          # Classify failure:
-          # - No content + fast (< 30s): rate limit or auth issue
-          # - No content + slow: infrastructure issue
-          # - Has content + failed: real build failure (code was wrong)
-          if [ "$HAS_CONTENT" = "false" ] && [ "$ELAPSED" -lt 30 ]; then
+          # Failure classification:
+          # - Fast fail (<30s) and no branch pushed: rate limit / auth / infra
+          # - Slow fail with no branch: real failure with no work product
+          # - Has branch but no PR: Claude pushed but couldn't open PR (rebase conflict, etc.)
+          if [ "$ELAPSED" -lt 30 ]; then
             LABEL="rate-limited"
-            MSG="Build stopped with no work done (${ELAPSED}s). Likely rate limited or auth issue."
-          elif [ "$HAS_CONTENT" = "false" ]; then
-            LABEL="rate-limited"
-            MSG="Build stopped with no work done after ${ELAPSED}s. Infrastructure issue."
+            MSG="Build stopped after ${ELAPSED}s with no work done. Likely rate limited or auth issue."
+          elif [ "$BRANCH_PUSHED" -gt 0 ]; then
+            LABEL="build-failed"
+            MSG="Branch \`claude/issue-${ISSUE_NUM}\` was pushed but no PR opened (rebase conflict or PR creation failed). Check [logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
           else
             LABEL="build-failed"
-            MSG="Build failed after ${ELAPSED}s with work in progress. Check [logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+            MSG="Build failed after ${ELAPSED}s. No branch pushed. Check [logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
           fi
 
           # Count previous retries for this issue
-          RETRY_COUNT=$(gh issue view ${{ github.event.issue.number }} --json comments -q '[.comments[].body | select(startswith("Auto-retry"))] | length')
+          RETRY_COUNT=$(gh issue view "$ISSUE_NUM" --json comments -q '[.comments[].body | select(startswith("Auto-retry"))] | length')
 
           if [ "$LABEL" = "rate-limited" ] && [ "$RETRY_COUNT" -ge 3 ]; then
             LABEL="rate-limit-paused"
             MSG="$MSG Paused after $RETRY_COUNT retries — will retry on next 30-min cycle."
           fi
 
-          gh issue edit ${{ github.event.issue.number }} \
+          gh issue edit "$ISSUE_NUM" \
             --remove-label ready-to-build \
             --add-label "$LABEL"
-          gh issue comment ${{ github.event.issue.number }} --body "$MSG"
+          gh issue comment "$ISSUE_NUM" --body "$MSG"
           exit 1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
