@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-06] — #6 list-feedback admin edge function
+
+- Added: `supabase/functions/list-feedback/index.ts` Deno edge function entry that builds user-scoped + service-role Supabase clients and delegates to a pure handler.
+- Added: `src/entities/feedback/list-feedback.ts` — testable `handleListFeedback(request, deps)` handler plus `listFeedbackTool` MCP description (name, description, parameter descriptions).
+- Added: `ListFeedbackParams` Zod schema in `src/entities/feedback/types.ts` — coerces `page` / `pageSize` query params, defaults to 1 / 20, enforces `pageSize <= 100`.
+- Added: Admin role check via `user.app_metadata.role === 'admin'` JWT claim; non-admins get `403 { error: { error_code: 'FORBIDDEN' } }`. Successful responses return `200 { data, page, pageSize, total }` ordered `created_at desc` and exclude soft-deleted rows.
+- Added: `src/entities/feedback/list-feedback.test.ts` covering admin happy path with default and custom pagination offsets, empty result, non-admin 403, unauthenticated 401, `pageSize > 100` validation rejection, and non-GET 405.
+- Changed: `src/entities/feedback/definition.md` documents the admin role decision (JWT claim over `user_roles` table) and the service-role usage exception.
+- Changed: `tsconfig.json` and `jest.config.ts` exclude `supabase/functions/` (Deno runtime, not typechecked or unit-tested by Jest).
+- Files: `supabase/functions/list-feedback/index.ts`, `src/entities/feedback/list-feedback.ts`, `src/entities/feedback/list-feedback.test.ts`, `src/entities/feedback/types.ts`, `src/entities/feedback/definition.md`, `tsconfig.json`, `jest.config.ts`
+
 ## [2026-04-06] — #4 Feedback queries and server actions
 
 - Added: `createFeedback` server action with auth check, Zod `safeParse`, and structured `{ data, error }` returns (UNAUTHENTICATED / VALIDATION_ERROR / INSERT_FAILED).
