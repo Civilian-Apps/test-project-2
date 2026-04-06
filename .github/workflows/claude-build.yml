@@ -71,7 +71,7 @@ jobs:
                 $(git log -1 --pretty=%b)" \
                   --head claude/issue-${{ github.event.issue.number }}
             11. Do not stop until the PR is open. Do not ask for confirmation.
-          claude_args: '--max-turns 40 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
+          claude_args: '--max-turns 60 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
 
       - name: Classify result
         if: always()
