@@ -23,3 +23,15 @@ export const Feedback = FeedbackInput.extend({
   deleted_at: z.string().nullable(),
 });
 export type Feedback = z.infer<typeof Feedback>;
+
+/**
+ * Query parameters for the admin-only `list-feedback` edge function.
+ *
+ * - `page`: 1-indexed page number, defaults to 1
+ * - `pageSize`: rows per page, defaults to 20, hard maximum of 100
+ */
+export const ListFeedbackParams = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+});
+export type ListFeedbackParams = z.infer<typeof ListFeedbackParams>;
