@@ -5,7 +5,11 @@ on:
   pull_request:
     types: [closed]
   schedule:
-    - cron: '*/30 * * * *'
+    # Tightened from */30 to */5 so the watchdog (below) revives stuck
+    # rate-limited issues quickly when no other build is running. The
+    # pacer itself is a 15-25s job so the cost of running it 6x more
+    # often is negligible.
+    - cron: '*/5 * * * *'
 
 jobs:
   pace:
@@ -47,14 +51,61 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
 
-      - name: Retry paused issues (30-min cron only)
+      - name: Retry paused issues (cron only)
         if: github.event_name == 'schedule'
         run: |
           PAUSED=$(gh issue list --label "rate-limit-paused" --state open --json number -q '.[].number')
           for ISSUE in $PAUSED; do
             gh issue edit $ISSUE --remove-label "rate-limit-paused" --add-label "approved"
-            gh issue comment $ISSUE --body "Resuming from 30-min cycle."
+            gh issue comment $ISSUE --body "Resuming from cron cycle."
             echo "Resumed paused #$ISSUE"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      # Watchdog: prevent the "nothing is running" state.
+      #
+      # The classifier in claude-build.yml labels failed builds as
+      # `rate-limited` via GITHUB_TOKEN. GITHUB_TOKEN label changes do
+      # NOT trigger downstream workflows (anti-recursion safety), so
+      # the pacer never sees the new label until the next cron tick.
+      # If both B and C in a parallel dispatch fail (e.g. GH App token
+      # race), the queue is silently stuck.
+      #
+      # This step runs only on schedule. If no Build Feature is
+      # currently in progress AND there are rate-limited issues, it
+      # promotes them back to `approved` so the Promote step below
+      # picks them up. Subject to the existing 3-retry cap (counted
+      # in the immediate-retry step above on the next non-schedule
+      # event, which the new approved→ready-to-build transition will
+      # NOT trigger by itself — but the Promote step still dispatches
+      # them, which is the desired outcome).
+      - name: Watchdog — revive rate-limited if no builds running
+        if: github.event_name == 'schedule'
+        run: |
+          ACTIVE_BUILDS=$(gh run list --workflow "Build Feature" --status in_progress --json databaseId -q 'length')
+          if [ "$ACTIVE_BUILDS" -gt 0 ]; then
+            echo "$ACTIVE_BUILDS Build Feature run(s) in progress — watchdog passive."
+            exit 0
+          fi
+          RATE_LIMITED=$(gh issue list --label "rate-limited" --state open --json number -q '.[].number')
+          if [ -z "$RATE_LIMITED" ]; then
+            echo "No rate-limited issues — watchdog idle."
+            exit 0
+          fi
+          for ISSUE in $RATE_LIMITED; do
+            RETRY_COUNT=$(gh issue view $ISSUE --json comments -q '[.comments[].body | select(startswith("Auto-retry") or startswith("Watchdog revival"))] | length')
+            if [ "$RETRY_COUNT" -lt 3 ]; then
+              NEXT=$((RETRY_COUNT + 1))
+              gh issue edit $ISSUE --remove-label "rate-limited" --add-label "approved"
+              gh issue comment $ISSUE --body "Watchdog revival $NEXT/3 — no other builds running."
+              echo "Watchdog revived #$ISSUE ($NEXT/3)"
+            else
+              gh issue edit $ISSUE --remove-label "rate-limited" --add-label "rate-limit-paused"
+              gh issue comment $ISSUE --body "Paused after 3 watchdog revivals."
+              echo "Paused #$ISSUE after 3 watchdog revivals"
+            fi
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -117,6 +168,15 @@ jobs:
             done
 
             if [ "$HAS_DEPS" = "false" ]; then
+              # Stagger consecutive dispatches by 30s. The Claude GitHub
+              # App's `installation/token` endpoint races when two builds
+              # start within seconds of each other (Bug 6 — first observed
+              # in test-project-2 #39 + #40, both died in ~3s at the
+              # token acquisition step). 30s spacing is empirically safe.
+              if [ "$LABELED" -gt 0 ]; then
+                echo "Sleeping 30s before next dispatch (parallel-race avoidance)..."
+                sleep 30
+              fi
               # Label change is documentation; the actual trigger is workflow_dispatch
               # because GitHub does not chain workflows from label events made by
               # GITHUB_TOKEN (anti-recursion safety).
