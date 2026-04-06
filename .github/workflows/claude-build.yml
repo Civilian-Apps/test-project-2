@@ -44,14 +44,20 @@ jobs:
         continue-on-error: true
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
           prompt: |
-            Read the issue body for the feature spec.
-            Follow TDD: write failing tests first, then implement.
-            All tests must pass — not just your new tests, the FULL test suite.
-            Lint must be clean. Types must check.
-            Update CHANGELOG.md with what you built.
-            Create a PR with conventional commit message referencing the Issue.
-          claude_args: '--max-turns 30 --model claude-opus-4-6'
+            You are implementing a GitHub issue end-to-end. This is NOT a conversation — you must do the work.
+
+            Steps (follow in order, use the Bash/Edit/Write tools):
+            1. Read the issue body with: gh issue view ${{ github.event.issue.number }} --json title,body
+            2. Create a feature branch: git checkout -b claude/issue-${{ github.event.issue.number }}
+            3. Follow TDD: write a failing test first, then minimum code to pass, then refactor.
+            4. Run the FULL test suite, lint, and type check. Fix anything that breaks.
+            5. Update CHANGELOG.md per rules/changelog-rule.md.
+            6. Commit with a conventional-commit message referencing the issue (e.g. "feat: add /terms page (#${{ github.event.issue.number }})").
+            7. Push the branch and open a PR with: gh pr create --fill --head claude/issue-${{ github.event.issue.number }}
+            8. Do not stop until the PR is open. Do not ask for confirmation.
+          claude_args: '--max-turns 30 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
 
       - name: Classify result
         if: always()
