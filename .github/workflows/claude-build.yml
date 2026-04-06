@@ -96,6 +96,7 @@ jobs:
             3. Fetch the latest default branch so the base is current: git fetch origin main && git checkout -b claude/issue-${{ env.ISSUE_NUM }} origin/main
             4. Follow TDD: write a failing test first, then minimum code to pass, then refactor. Vertical slices.
             5. Run the FULL test suite, lint, and type check. Fix anything that breaks. If your changes touch `supabase/migrations/**`, also run `supabase start && npm run gen:types` exactly once before running tests, so the generated types in `src/libs/supabase/types.ts` reflect the new schema.
+            5b. ACCEPTANCE CRITERIA SELF-CHECK: re-fetch the issue body with `gh issue view ${{ env.ISSUE_NUM }} --json body -q '.body'`. For EVERY `- [ ]` line in the Acceptance criteria section, verify the implementation satisfies it. Walk through them one-by-one. If any criterion is unmet, return to step 4, complete it, and re-run step 5. Do NOT proceed to step 6 until you can honestly say every criterion is satisfied. This self-check is the spec adherence gate — the PR review job is silent-on-success and will not catch missed criteria, so it is on you to verify here.
             6. Update CHANGELOG.md per rules/changelog-rule.md — append a new dated entry, never overwrite existing entries.
             7. Stage explicit paths and commit with a conventional-commit subject, e.g. `feat: add /terms page`.
             8. Rebase onto latest main in case it moved during your work:
