@@ -12,6 +12,15 @@ All notable changes to this project will be documented in this file.
 - Changed: `src/entities/feedback/definition.md` documents the admin role decision (JWT claim over `user_roles` table) and the service-role usage exception.
 - Changed: `tsconfig.json` and `jest.config.ts` exclude `supabase/functions/` (Deno runtime, not typechecked or unit-tested by Jest).
 - Files: `supabase/functions/list-feedback/index.ts`, `src/entities/feedback/list-feedback.ts`, `src/entities/feedback/list-feedback.test.ts`, `src/entities/feedback/types.ts`, `src/entities/feedback/definition.md`, `tsconfig.json`, `jest.config.ts`
+## [2026-04-06] — #5 create-feedback edge function (REST + MCP)
+
+- Added: `supabase/functions/create-feedback/handler.ts` — pure handler validating `FeedbackInput` (shared Zod schema), extracting identity from the `Authorization: Bearer <jwt>` header, supporting `Idempotency-Key` replay, and returning structured `{ id, created_at }` / `{ error: { error_code, message, fields? } }` responses (200/400/401/405/500).
+- Added: Deno entrypoint `supabase/functions/create-feedback/index.ts` wiring a user-scoped Supabase client (RLS enforced) for the insert and a service-role client for idempotency lookups.
+- Added: `createFeedbackTool` export with name, description, and parameter descriptions for MCP discoverability.
+- Added: `idempotency_keys` table (migration `20260406010000_create_idempotency_keys.sql`) with RLS, scoping replays per `(user_id, key, resource_type)`.
+- Added: `supabase/functions/create-feedback/index.test.ts` covering success, Zod rejection, invalid-JSON rejection, unauth rejection, method-not-allowed, idempotency replay, idempotency pass-through to insert, insert failure, and tool descriptor shape.
+- Changed: `tsconfig.json` excludes `supabase/functions/**/index.ts` from `tsc --noEmit` since those files target the Deno runtime.
+- Files: `supabase/functions/create-feedback/handler.ts`, `supabase/functions/create-feedback/index.ts`, `supabase/functions/create-feedback/index.test.ts`, `supabase/migrations/20260406010000_create_idempotency_keys.sql`, `tsconfig.json`
 
 ## [2026-04-06] — #4 Feedback queries and server actions
 
