@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-06] — #39 tag server actions (create, list, soft-delete)
+
+- Added: `src/entities/tag/actions.ts` — `createTag(input)` and `softDeleteTag(id)` server actions. Both run an `auth.getUser()` check first, validate input via `TagInput.safeParse` / a uuid `safeParse`, and return `{ data, error }` shapes (`UNAUTHENTICATED`, `VALIDATION_ERROR`, `INSERT_FAILED`, `UPDATE_FAILED`) — never throwing to the client. `softDeleteTag` scopes the update by both `id` and `user_id` and stamps `deleted_at` with the current ISO timestamp.
+- Added: `src/entities/tag/queries.ts` — `listUserTags({ page, pageSize })` returning the current user's non-soft-deleted tags ordered by `created_at desc`, with default `page=1, pageSize=50` pagination via `range`. Returns the same `{ data, error }` shape with an `UNAUTHENTICATED` path.
+- Added: tests in `src/entities/tag/tag.test.ts` covering createTag success, unauth, Zod rejection (empty name and bad colour), and insert failure; softDeleteTag success, unauth, invalid uuid, and update failure; listUserTags default ordering/pagination, page=3 offset, and unauth path.
+- Files: `src/entities/tag/actions.ts`, `src/entities/tag/queries.ts`, `src/entities/tag/tag.test.ts`, `CHANGELOG.md`
+
 ## [2026-04-06] — #32 tag entity (table, types, RLS)
 
 - Added: `supabase/migrations/20260406020000_create_tag.sql` — `public.tag` table (`id`, `user_id`, `name`, `color`, `created_at`, `deleted_at`) with `CHECK` constraints on name length (1..40) and 6-digit hex color, partial unique index on `(user_id, name) WHERE deleted_at IS NULL`, RLS enabled, and SELECT/INSERT/UPDATE policies scoped to `auth.uid() = user_id`.
