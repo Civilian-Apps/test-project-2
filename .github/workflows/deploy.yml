@@ -33,17 +33,31 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
-            # Resolve the canonical production alias from the Vercel API (so we record the
-            # stable URL like `test-project-kappa-virid.vercel.app`, not the per-deploy hash URL).
-            # A project can have several production aliases; prefer the team-pattern alias
-            # `<name>-civilian-apps.vercel.app` when present, else fall back to alias[0].
-            ALIAS=$(curl -sf "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}" \
-              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-              | jq -r '([.targets.production.alias[]? | select(endswith("-civilian-apps.vercel.app"))][0]) // (.targets.production.alias[0]) // empty')
-            if [[ -n "$ALIAS" ]]; then
-              URL="https://${ALIAS}"
+            # Resolve the canonical production URL. Vercel projects can hold several
+            # production aliases (e.g. `<name>-civilian-apps.vercel.app` and a randomised
+            # `<name>-<suffix>.vercel.app` when the short name conflicts at the global
+            # namespace). The right URL isn't always alias[0], so:
+            #
+            #   1. Try the team-pattern URL `<repo>-civilian-apps.vercel.app` and curl-verify
+            #      it actually serves our app (2xx). If another Vercel account owns that
+            #      short name, it'll return 401/403 and we skip it.
+            #   2. Otherwise fall back to `alias[0]` from the Vercel API (the one Vercel
+            #      considers primary for this project).
+            #   3. Last resort: the per-deploy URL that `vercel deploy` just returned.
+            REPO_NAME="${{ github.event.repository.name }}"
+            EXPECTED_URL="https://${REPO_NAME}-civilian-apps.vercel.app"
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 "$EXPECTED_URL" || echo 000)
+            if [[ "$CODE" =~ ^2 ]]; then
+              URL="$EXPECTED_URL"
             else
-              URL="$DEPLOY_URL"
+              ALIAS=$(curl -sf "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}" \
+                -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+                | jq -r '.targets.production.alias[0] // empty')
+              if [[ -n "$ALIAS" ]]; then
+                URL="https://${ALIAS}"
+              else
+                URL="$DEPLOY_URL"
+              fi
             fi
             echo "url=$URL" >> "$GITHUB_OUTPUT"
             echo "environment=production" >> "$GITHUB_OUTPUT"
