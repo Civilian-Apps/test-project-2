@@ -1,0 +1,32 @@
+name: Auto-merge agent PRs
+on:
+  pull_request:
+    types: [opened, reopened]
+
+# Enables auto-merge on PRs opened from `claude/issue-*` branches by the
+# build agent. Auto-merge waits for required status checks (test-suite)
+# to pass, then squashes and deletes the branch. This closes the merge
+# gap in the autonomous pipeline — without it, agent PRs sit open until
+# a human clicks the green button, breaking the issue → build → close →
+# pacer chain.
+#
+# Why a workflow and not a step in the build prompt: keeps merge policy
+# as code (not as agent-prompt drift), and survives prompt rewrites.
+jobs:
+  enable-auto-merge:
+    if: startsWith(github.event.pull_request.head.ref, 'claude/issue-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr merge "$PR_NUM" \
+            --repo "${{ github.repository }}" \
+            --auto \
+            --squash \
+            --delete-branch

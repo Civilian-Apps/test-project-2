@@ -53,6 +53,10 @@ jobs:
             Check: does the code follow rules/app-spec.md and CLAUDE.md?
             The full test suite has already run and passed — focus on
             design, edge cases, and spec adherence.
-            Post your review as PR comments.
-            If everything passes, add the label "ready-for-human-review".
+
+            SILENT-ON-SUCCESS: only post review comments if you find
+            issues that need attention. If everything matches the spec
+            and rules, do NOT post anything — say so in your final
+            response and exit. The test suite is the merge gate; this
+            review is a safety net for spec drift, not a chatty pass.
           claude_args: '--max-turns 15 --model claude-sonnet-4-6 --allowedTools Bash(git*),Read,Glob,Grep'
