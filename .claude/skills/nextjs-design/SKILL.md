@@ -77,3 +77,38 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return <ItemView item={item} />;
 }
 ```
+
+### Component structure
+
+```tsx
+'use client'; // only if interactivity, hooks, or browser APIs needed
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import type { Widget } from '@/entities/widget/types';
+
+interface WidgetCardProps {
+  widget: Widget;
+  onSelect: (id: string) => void;
+}
+
+export function WidgetCard({ widget, onSelect }: WidgetCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <Card>
+      <CardHeader>{widget.name}</CardHeader>
+      <CardContent>{/* Component body */}</CardContent>
+    </Card>
+  );
+}
+```
+
+### Data table
+
+For tabular data, use the shadcn DataTable pattern with `@tanstack/react-table`:
+
+- Define columns with `ColumnDef<T>[]`
+- Use the `DataTable` component with pagination, sorting, and filtering
+- Make tables responsive and full width — no fixed pixel widths

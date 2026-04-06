@@ -40,7 +40,5 @@ Blank line between each group.
 
 ## Testing
 
-- Co-locate test files: `foo.test.ts` next to `foo.ts`
-- Test behaviour, not implementation.
-- Mock external services (Supabase, Stripe), not internal modules.
-- Every server action needs at least: happy path + auth check + validation error.
+- Test everything. No code ships without tests.
+- Co-locate test files: `foo.test.ts` next to `foo.ts`.

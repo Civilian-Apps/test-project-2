@@ -98,9 +98,34 @@ Consolidated from Vercel Engineering best practices + Next.js eval-tested patter
 - Use `redirect()`, `notFound()`, `forbidden()`, `unauthorized()` for control flow.
 - Wrap `redirect()` calls in try/catch with `unstable_rethrow` if inside a catch block.
 
+## UI Components (shadcn/ui + Tailwind)
+
+- Use shadcn/ui components for all UI. No other component libraries.
+- Icons: `lucide-react` only.
+- Install before importing: `npx shadcn@latest add {component}`.
+- Tailwind CSS utility classes for all styling. No inline styles.
+- Use CSS variables from `globals.css` for theming (shadcn/ui convention).
+- Theme-aware classes: `bg-primary`, `text-muted-foreground`, `border`, `destructive`.
+- Responsive: use `sm:`, `md:`, `lg:` prefixes.
+- Data tables: use shadcn DataTable pattern with `@tanstack/react-table` for tabular data with pagination, sorting, filtering.
+
+## State Management
+
+- Server state: Server Components fetch directly. No client-side fetching for initial data.
+- Global client state: React Context (user info, settings, theme).
+- Local state: `useState` for component-specific data.
+- Complex state logic: `useReducer`.
+- Server state on client: React Query (`@tanstack/react-query`) for caching and mutations.
+- Forms: `react-hook-form` + `zod` schemas for validation.
+
 ## Images & Fonts
 
 - Always use `next/image` over `<img>` — automatic optimization.
 - Always use `next/font` — automatic subsetting and self-hosting.
 - Set `sizes` attribute on responsive images.
 - Use `priority` on LCP images (hero, above-fold).
+
+## General
+
+- No `console.log` or `console.error` in production code.
+- No `any` types — use proper TypeScript interfaces.
