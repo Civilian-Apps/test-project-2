@@ -35,9 +35,11 @@ jobs:
             DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
             # Resolve the canonical production alias from the Vercel API (so we record the
             # stable URL like `test-project-kappa-virid.vercel.app`, not the per-deploy hash URL).
+            # A project can have several production aliases; prefer the team-pattern alias
+            # `<name>-civilian-apps.vercel.app` when present, else fall back to alias[0].
             ALIAS=$(curl -sf "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}" \
               -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-              | jq -r '.targets.production.alias[0] // empty')
+              | jq -r '([.targets.production.alias[]? | select(endswith("-civilian-apps.vercel.app"))][0]) // (.targets.production.alias[0]) // empty')
             if [[ -n "$ALIAS" ]]; then
               URL="https://${ALIAS}"
             else
