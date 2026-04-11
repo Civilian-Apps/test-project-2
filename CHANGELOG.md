@@ -96,3 +96,10 @@ All notable changes to this project will be documented in this file.
 - Added: Test verifying the page renders the expected heading.
 - Changed: `jest.config.ts` now transforms TSX with `react-jsx` so component tests can render JSX.
 - Files: `src/app/terms/page.tsx`, `src/app/terms/page.test.tsx`, `src/app/layout.tsx`, `jest.config.ts`
+
+## TEST — bug 8 validation via bot-enabled auto-merge (#60)
+
+Single-line dummy CHANGELOG entry to produce a trivial diff for a
+claude/issue-60 branch PR that will be auto-merged by the workflow.
+Validates the close-linked-issues job fires under github-actions[bot]
+merger identity.
