@@ -53,15 +53,16 @@ jobs:
       - name: Close issues referenced by `Closes #N` / `Fixes #N` / `Resolves #N`
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           PR_NUM: ${{ github.event.pull_request.number }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # GitHub recognises closing keywords: close/closes/closed,
-          # fix/fixes/fixed, resolve/resolves/resolved. Case-insensitive.
-          # We match the same set. Cross-repo refs (`owner/repo#N`) are
-          # intentionally not handled — closing an issue in another repo
-          # from here is a policy call we don't want to make silently.
-          ISSUES=$(echo "$PR_BODY" | grep -oiE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' | grep -oE '#[0-9]+' | sed 's/#//' | sort -u)
+          # Match closing keywords only at the start of a line (after optional
+          # whitespace). This mirrors GitHub's own stricter interpretation and
+          # avoids false positives on prose references like "the fix from #4".
+          # Keywords: close/closes/closed, fix/fixes/fixed, resolve/resolves/resolved.
+          # Cross-repo refs (`owner/repo#N`) are intentionally not handled.
+          ISSUES=$(printf '%s\n' "$PR_BODY" | grep -oiE '^[[:space:]]*(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' | grep -oE '#[0-9]+' | sed 's/#//' | sort -u)
 
           if [ -z "$ISSUES" ]; then
             echo "No closing keywords found in PR #$PR_NUM body. Nothing to do."
