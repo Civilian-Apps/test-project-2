@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-11] — #51 verify tag server actions satisfy spec
+
+- Verified: issue #51 ("Add tag server actions: create, list, soft-delete") is satisfied in full by the existing implementation originally shipped for #39 (merged in PR #46) and subsequently updated by #50 (merged in PR #54) to include `updated_at`. No code change required — all acceptance criteria pass against the current `src/entities/tag/actions.ts`, `src/entities/tag/queries.ts`, and `src/entities/tag/tag.test.ts`.
+- Verified: `createTag(input)` and `softDeleteTag(id)` in `actions.ts` validate via `TagInput.safeParse` / uuid `safeParse` and return `{ data, error }` shapes with `UNAUTHENTICATED`, `VALIDATION_ERROR`, `INSERT_FAILED`, `UPDATE_FAILED` codes — no throws to the client.
+- Verified: `listUserTags({ page, pageSize })` in `queries.ts` returns the current user's non-soft-deleted tags ordered by `created_at desc` with default `page=1, pageSize=50`, and returns `UNAUTHENTICATED` when no session is present.
+- Verified: `tag.test.ts` (27 tests, all passing) covers createTag success, createTag Zod rejection (empty name and non-hex color), softDeleteTag success, listUserTags default ordering/pagination and `page=3, pageSize=5` offset, and the unauth paths of all three.
+- Files: `CHANGELOG.md`
+
 ## [2026-04-11] — #52 tag picker component for account page
 
 - Added: `src/features/tags/TagPicker.tsx` — new client component that renders the user's tags as removable chips and provides a "+ Add tag" button that opens an inline `react-hook-form` + `zodResolver` form reusing `TagInput`. Submit calls the `createTag` server action, chip remove calls `softDeleteTag`. Tags are received as a prop — the picker does not fetch its own data.
