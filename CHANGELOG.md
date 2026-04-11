@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-11] — #63 add /about page
+
+- Added: `src/app/about/page.tsx` — new Server Component route at `/about` rendering an "About" heading and three placeholder paragraphs, reusing the existing `prose prose-invert` shadcn/Tailwind typography pattern (mirrors `/terms`). No `"use client"`, no new dependencies.
+- Added: `src/app/about/page.test.tsx` — minimal tests covering (1) the AboutPage renders the "About" heading, (2) it renders at least two paragraphs, and (3) the home page exposes a `<Link href="/about">About</Link>`. The home-page test mocks `@/features/pricing/components/pricing-section` so the assertion does not pull Stripe env vars into the jsdom environment.
+- Changed: `src/app/page.tsx` — added an `<Link href="/about">About</Link>` next to the hero CTA so visitors can reach the new page.
+- Files: `src/app/about/page.tsx`, `src/app/about/page.test.tsx`, `src/app/page.tsx`, `CHANGELOG.md`
+
 ## [2026-04-11] — #51 verify tag server actions satisfy spec
 
 - Verified: issue #51 ("Add tag server actions: create, list, soft-delete") is satisfied in full by the existing implementation originally shipped for #39 (merged in PR #46) and subsequently updated by #50 (merged in PR #54) to include `updated_at`. No code change required — all acceptance criteria pass against the current `src/entities/tag/actions.ts`, `src/entities/tag/queries.ts`, and `src/entities/tag/tag.test.ts`.
