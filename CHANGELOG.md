@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-11] — #52 tag picker component for account page
+
+- Added: `src/features/tags/TagPicker.tsx` — new client component that renders the user's tags as removable chips and provides a "+ Add tag" button that opens an inline `react-hook-form` + `zodResolver` form reusing `TagInput`. Submit calls the `createTag` server action, chip remove calls `softDeleteTag`. Tags are received as a prop — the picker does not fetch its own data.
+- Added: `src/features/tags/TagPicker.test.tsx` — tests cover rendering chips, opening the add form, successful submission (mocked action), Zod-invalid submission (no action call), and chip removal (mocked action).
+- Changed: `src/app/(account)/account/page.tsx` — server-side `listUserTags()` result is passed into a new `TagPicker` rendered in a "Your Tags" card below the existing "Your Plan" card.
+- Files: `src/features/tags/TagPicker.tsx`, `src/features/tags/TagPicker.test.tsx`, `src/app/(account)/account/page.tsx`, `CHANGELOG.md`
+
 ## [2026-04-11] — #50 tag entity updated_at column
 
 - Added: `supabase/migrations/20260411120000_add_updated_at_to_tag.sql` — adds `updated_at timestamptz not null default now()` to `public.tag` and backfills existing rows to `created_at`, bringing the schema in line with the canonical definition in issue #50 (the original #32 create-tag migration omitted the column).
