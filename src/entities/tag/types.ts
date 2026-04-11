@@ -21,6 +21,7 @@ export const Tag = TagInput.extend({
   id: z.string().uuid(),
   user_id: z.string().uuid(),
   created_at: z.string(),
+  updated_at: z.string(),
   deleted_at: z.string().nullable(),
 });
 export type Tag = z.infer<typeof Tag>;

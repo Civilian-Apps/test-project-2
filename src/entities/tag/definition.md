@@ -16,10 +16,13 @@ exactly one user.
   user can recreate a tag with the same name after soft-deleting the old one.
 - Tags are **soft-deleted** via `deleted_at`. They are never hard-deleted.
 - A user can only see, create, and update their own tags. RLS enforces this.
+- Every row has `created_at` and `updated_at` timestamps, defaulted to `now()`
+  per the data-layer convention.
 
 ## Storage
 
-- Table: `public.tag` (see `supabase/migrations/20260406020000_create_tag.sql`)
+- Table: `public.tag` (see `supabase/migrations/20260406020000_create_tag.sql`
+  and `supabase/migrations/20260411120000_add_updated_at_to_tag.sql`)
 - RLS: enabled. SELECT / INSERT / UPDATE policies all scoped to
   `auth.uid() = user_id`. There is intentionally no DELETE policy — deletes are
   performed as soft deletes via UPDATE of `deleted_at`.
