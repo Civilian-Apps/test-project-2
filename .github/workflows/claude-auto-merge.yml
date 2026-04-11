@@ -19,6 +19,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # Bug 8: without `issues: write`, GitHub silently skips the
+      # auto-close of linked issues even though the squash commit
+      # contains `Closes #N`. The merger (github-actions[bot]) needs
+      # explicit authority to close issues.
+      issues: write
     steps:
       - name: Enable auto-merge
         env:

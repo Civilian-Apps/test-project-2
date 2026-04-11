@@ -142,7 +142,12 @@ jobs:
 
           ACTIVE=$(gh issue list --label "ready-to-build" --state open --json number -q 'length')
 
-          MAX_CONCURRENT=3
+          # Bug 9: parallel agent PRs that touch shared files (CHANGELOG.md,
+          # tsconfig, package-lock) race post-merge — one merges, the other
+          # goes mergeStateStatus=DIRTY. Serialising dispatches to one at a
+          # time eliminates the race entirely. The cascade is marginally
+          # slower (serial instead of parallel) but deterministic.
+          MAX_CONCURRENT=1
           SLOTS=$((MAX_CONCURRENT - ACTIVE))
 
           if [ "$SLOTS" -le 0 ]; then
