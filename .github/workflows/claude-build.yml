@@ -84,7 +84,7 @@ jobs:
             - VISIBILITY: Step 0 below (post a starting comment on the issue) is mandatory. Do it before anything else. Without it, the human watching the issue list has zero signal that work has begun.
             - GEN:TYPES: `npm run gen:types` requires a running local Supabase. If your changes touch `supabase/migrations/**`, FIRST run `supabase start` (takes ~2 min for the initial Docker pull, then fast on subsequent calls) BEFORE running `npm run gen:types`. If your changes do NOT touch `supabase/migrations/**`, you do not need gen:types and you must NOT run `supabase start` — it just wastes time. Never run `gen:types` against a stopped Supabase; it will hang.
 
-            TURN BUDGET DISCIPLINE: You have 60 turns. Aim to push by turn 40. If you reach turn 50 without a pushed branch, STOP iterating and ship what you have:
+            TURN BUDGET DISCIPLINE: You have 100 turns. Aim to push by turn 60. If you reach turn 80 without a pushed branch, STOP iterating and ship what you have:
               - commit current work-in-progress with message prefix `wip: ` if not finished
               - push the branch
               - open the PR with a body that says `Closes #${{ env.ISSUE_NUM }}. WIP — hit turn budget at step X.`
@@ -122,7 +122,7 @@ jobs:
                 $(git log -1 --pretty=%b)" \
                   --head claude/issue-${{ env.ISSUE_NUM }}
             11. Do not stop until the PR is open. Do not ask for confirmation.
-          claude_args: '--max-turns 60 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
+          claude_args: '--max-turns 100 --model claude-opus-4-6 --allowedTools Bash,Read,Write,Edit,Glob,Grep'
 
       - name: Classify result
         if: always()
