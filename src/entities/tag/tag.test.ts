@@ -90,10 +90,24 @@ describe('Tag schema', () => {
       name: 'Important',
       color: '#aabbcc',
       created_at: '2026-04-06T12:00:00.000Z',
+      updated_at: '2026-04-06T12:00:00.000Z',
       deleted_at: null,
     };
     const result = Tag.safeParse(row);
     expect(result.success).toBe(true);
+  });
+
+  it('rejects a row missing updated_at', () => {
+    const row = {
+      id: '00000000-0000-0000-0000-000000000001',
+      user_id: '00000000-0000-0000-0000-000000000002',
+      name: 'Important',
+      color: '#aabbcc',
+      created_at: '2026-04-06T12:00:00.000Z',
+      deleted_at: null,
+    };
+    const result = Tag.safeParse(row);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -108,6 +122,7 @@ describe('generated Supabase type alignment', () => {
       name: 'Important',
       color: '#aabbcc',
       created_at: '2026-04-06T12:00:00.000Z',
+      updated_at: '2026-04-06T12:00:00.000Z',
       deleted_at: null,
     };
     const parsed: Tag = row;
@@ -129,6 +144,7 @@ describe('createTag', () => {
       name: 'Important',
       color: '#aabbcc',
       created_at: '2026-04-06T12:00:00.000Z',
+      updated_at: '2026-04-06T12:00:00.000Z',
       deleted_at: null,
     };
     const single = jest.fn().mockResolvedValue({ data: insertedRow, error: null });
@@ -224,6 +240,7 @@ describe('softDeleteTag', () => {
       name: 'Important',
       color: '#aabbcc',
       created_at: '2026-04-06T12:00:00.000Z',
+      updated_at: '2026-04-06T13:00:00.000Z',
       deleted_at: '2026-04-06T13:00:00.000Z',
     };
     const chain = buildUpdateChain({ data: updatedRow, error: null });
@@ -295,6 +312,7 @@ describe('listUserTags', () => {
         name: 'Important',
         color: '#aabbcc',
         created_at: '2026-04-06T12:00:00.000Z',
+        updated_at: '2026-04-06T12:00:00.000Z',
         deleted_at: null,
       },
     ];

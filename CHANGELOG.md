@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-11] — #50 tag entity updated_at column
+
+- Added: `supabase/migrations/20260411120000_add_updated_at_to_tag.sql` — adds `updated_at timestamptz not null default now()` to `public.tag` and backfills existing rows to `created_at`, bringing the schema in line with the canonical definition in issue #50 (the original #32 create-tag migration omitted the column).
+- Changed: `src/entities/tag/types.ts` — `Tag` Zod schema now requires `updated_at` alongside `created_at`.
+- Changed: `src/libs/supabase/types.ts` — regenerated `tag` table Row/Insert/Update types to include `updated_at`.
+- Changed: `src/entities/tag/queries.ts` — `listUserTags` selects `updated_at` so the shape matches the `Tag` schema.
+- Changed: `src/entities/tag/definition.md` — documents the `updated_at` timestamp and references the new migration.
+- Added: `src/entities/tag/tag.test.ts` — new assertion that `Tag` rejects rows missing `updated_at`; existing fixtures updated to include the column.
+- Files: `supabase/migrations/20260411120000_add_updated_at_to_tag.sql`, `src/entities/tag/types.ts`, `src/entities/tag/queries.ts`, `src/entities/tag/definition.md`, `src/entities/tag/tag.test.ts`, `src/libs/supabase/types.ts`
+
 ## [2026-04-06] — #39 tag server actions (create, list, soft-delete)
 
 - Added: `src/entities/tag/actions.ts` — `createTag(input)` and `softDeleteTag(id)` server actions. Both run an `auth.getUser()` check first, validate input via `TagInput.safeParse` / a uuid `safeParse`, and return `{ data, error }` shapes (`UNAUTHENTICATED`, `VALIDATION_ERROR`, `INSERT_FAILED`, `UPDATE_FAILED`) — never throwing to the client. `softDeleteTag` scopes the update by both `id` and `user_id` and stamps `deleted_at` with the current ISO timestamp.

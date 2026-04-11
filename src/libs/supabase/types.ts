@@ -48,6 +48,7 @@ export interface Database {
           name: string;
           color: string;
           created_at: string;
+          updated_at: string;
           deleted_at: string | null;
         };
         Insert: {
@@ -56,6 +57,7 @@ export interface Database {
           name: string;
           color: string;
           created_at?: string;
+          updated_at?: string;
           deleted_at?: string | null;
         };
         Update: {
@@ -64,6 +66,7 @@ export interface Database {
           name?: string;
           color?: string;
           created_at?: string;
+          updated_at?: string;
           deleted_at?: string | null;
         };
         Relationships: [

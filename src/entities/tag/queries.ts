@@ -29,7 +29,7 @@ export async function listUserTags({ page = 1, pageSize = 50 }: ListUserTagsPara
 
   const { data, error } = await supabase
     .from('tag')
-    .select('id, user_id, name, color, created_at, deleted_at')
+    .select('id, user_id, name, color, created_at, updated_at, deleted_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range(from, to);
