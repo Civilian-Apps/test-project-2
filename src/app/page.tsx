@@ -29,6 +29,9 @@ function HeroSection() {
           <Button asChild variant='sexy'>
             <Link href='/signup'>Get started for free</Link>
           </Button>
+          <Link href='/about' className='w-fit text-sm underline underline-offset-4'>
+            About
+          </Link>
         </div>
       </Container>
       <Image
