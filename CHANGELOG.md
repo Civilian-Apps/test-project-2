@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-12] — #68 add guestbook entity (migration, types, RLS)
+
+- Added: `supabase/migrations/20260412000000_create_guestbook.sql` — new `guestbook` table (`id`, `user_id` FK to `auth.users` with `on delete cascade`, `message text not null`, `created_at`, `updated_at`, `deleted_at`), a `char_length(message) between 1 and 280` CHECK constraint, two partial indexes on `user_id` and `created_at` (both `where deleted_at is null`), RLS enabled, and three policies: authenticated users can SELECT rows where `deleted_at is null`, and the row owner (`auth.uid() = user_id`) can INSERT/UPDATE their own rows. Soft-delete is performed via UPDATE of `deleted_at`; no DELETE policy intentionally.
+- Added: `src/entities/guestbook/definition.md` — canonical business rules for the guestbook entity (ownership, 1-280 message length, soft-delete only, public-within-app reads, owner-scoped writes).
+- Added: `src/entities/guestbook/types.ts` — Zod `GuestbookEntryInput` (`message` 1-280 chars) and `GuestbookEntry` schemas with inferred TS types. Follows the types-only convention from `rules/ontology.md` (no internal imports).
+- Added: `src/entities/guestbook/guestbook.test.ts` — 7 tests: valid message accepted, empty rejected, 281-char rejected, 280-char accepted, `GuestbookEntry` accepts valid and soft-deleted rows, and a compile-time assertion that the generated `Database['public']['Tables']['guestbook']['Row']` type is assignable to / from the Zod schema.
+- Changed: `src/libs/supabase/types.ts` — regenerated via `npm run gen:types` against a local Supabase (`supabase start`). Now includes the `guestbook` table Row/Insert/Update types alongside the existing tables.
+- Changed: `package.json` — fixed the `gen:types` script output path from the non-existent `src/lib/supabase/types.ts` to the actual `src/libs/supabase/types.ts` so `npm run gen:types` writes to the right file.
+- Files: `supabase/migrations/20260412000000_create_guestbook.sql`, `src/entities/guestbook/definition.md`, `src/entities/guestbook/types.ts`, `src/entities/guestbook/guestbook.test.ts`, `src/libs/supabase/types.ts`, `package.json`, `CHANGELOG.md`
+
 ## [2026-04-12] — #66 add /contact page
 
 - Added: `src/app/contact/page.tsx` — new Server Component route at `/contact` rendering a "Contact" heading and a single paragraph with a `mailto:hello@example.com` link, reusing the `prose prose-invert` typography pattern from `/about` and `/terms`. No `"use client"`, no new dependencies.
