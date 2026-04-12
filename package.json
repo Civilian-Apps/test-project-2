@@ -21,7 +21,7 @@
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --passWithNoTests",
     "format": "prettier --write .",
-    "gen:types": "supabase gen types typescript --local > src/lib/supabase/types.ts",
+    "gen:types": "supabase gen types typescript --local > src/libs/supabase/types.ts",
     "db:reset": "supabase db reset && npm run gen:types",
     "db:push": "supabase db push && npm run gen:types"
   },
