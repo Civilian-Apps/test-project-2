@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-12] — #66 add /contact page
+
+- Added: `src/app/contact/page.tsx` — new Server Component route at `/contact` rendering a "Contact" heading and a single paragraph with a `mailto:hello@example.com` link, reusing the `prose prose-invert` typography pattern from `/about` and `/terms`. No `"use client"`, no new dependencies.
+- Added: `src/app/contact/page.test.tsx` — tests covering (1) the ContactPage renders the "Contact" heading, (2) it renders a mailto link to `hello@example.com`, and (3) the home page exposes a `<Link href="/contact">Contact</Link>`. The home-page test mocks `@/features/pricing/components/pricing-section` to keep Stripe env vars out of jsdom.
+- Changed: `src/app/page.tsx` — added `<Link href="/contact">Contact</Link>` next to the existing `<Link href="/about">About</Link>` in the hero section, wrapped in a flex row.
+- Files: `src/app/contact/page.tsx`, `src/app/contact/page.test.tsx`, `src/app/page.tsx`, `CHANGELOG.md`
+
 ## [2026-04-11] — #63 add /about page
 
 - Added: `src/app/about/page.tsx` — new Server Component route at `/about` rendering an "About" heading and three placeholder paragraphs, reusing the existing `prose prose-invert` shadcn/Tailwind typography pattern (mirrors `/terms`). No `"use client"`, no new dependencies.
