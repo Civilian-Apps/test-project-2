@@ -29,9 +29,14 @@ function HeroSection() {
           <Button asChild variant='sexy'>
             <Link href='/signup'>Get started for free</Link>
           </Button>
-          <Link href='/about' className='w-fit text-sm underline underline-offset-4'>
-            About
-          </Link>
+          <div className='flex gap-4'>
+            <Link href='/about' className='w-fit text-sm underline underline-offset-4'>
+              About
+            </Link>
+            <Link href='/contact' className='w-fit text-sm underline underline-offset-4'>
+              Contact
+            </Link>
+          </div>
         </div>
       </Container>
       <Image
